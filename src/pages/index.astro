@@ -12,7 +12,7 @@ import SkillLayout from '@/components/home/SkillLayout.astro'
 import config from '@/site-config'
 
 const languages = ['C', 'Python','HTML', 'JavaScript','CSS']
-const points=['Web Security','Reinforcement Learning','Smartcars']
+const points=['Web安全','强化学习','智能车']
 
 
 const MAX_POSTS = 10
@@ -29,7 +29,7 @@ if (!images[imagePath])
   )
 ---
 
-<PageLayout meta={{ title: 'Home' }} highlightColor='#659EB9'>
+<PageLayout meta={{ title: '首页' }} highlightColor='#659EB9'>
   <main class='flex w-full flex-col items-center'>
     <section class='animate mb-10 flex flex-col items-center gap-y-7' id='content-header'>
       <Image
@@ -43,7 +43,7 @@ if (!images[imagePath])
       <div class='flex flex-col items-center gap-y-4'>
         <h1 class='text-3xl font-medium'>{config.author}</h1>
         <div class='flex flex-wrap justify-center gap-x-7 gap-y-3'>
-          <Label title='Jiangnan University'>
+          <Label title='江南大学'>
             <Icon name='location' class='size-5' slot='icon' />
           </Label>
           <!-- <Label
@@ -74,16 +74,16 @@ if (!images[imagePath])
     </section>
 
     <div id='content' class='animate flex flex-col gap-y-10 md:w-4/5 lg:w-5/6'>
-      <Section title='About'>
-        <p class='text-muted-foreground'>Student / Developer</p>
+      <Section title='关于我'>
+        <p class='text-muted-foreground'>学生/开发者</p>
         <p class='text-muted-foreground'>
-          	Hi, I'm Maxton Niu, an Automation major at Jiangnan University (JNU).My primary interests lie in Web Security, and I am currently diving deep into Reinforcement Learning. I also possess a foundational understanding of hardware and PCB design.As a beginner building my knowledge base, I am actively wrestling with the complexities of mathematics, but I enjoy the challenge. I believe in simple and direct solutions to problems and aspire to make significant contributions to these fields in the future.
+          你好，我是 Maxton Niu，一名来自江南大学（JNU）自动化专业的学生。我的技术栈主要聚焦于 Web 安全，同时也正在深入探索强化学习（Reinforcement Learning）领域。在硬件方面，我对 PCB 设计也有一定的实践认知。目前我正处于夯实基础的阶段，虽然数学的复杂性常让我感到挣扎，但我享受攻克难关的过程。作为一名初学者，我推崇简单、直接的问题解决方式，并期待未来能在这些前沿方向上有所建树。
         </p>
-        <Button title='More about me' class='w-fit self-end' href='/about' variant='ahead' />
+        <Button title='更多' class='w-fit self-end' href='/about' variant='ahead' />
       </Section>
       {
         allPostsByDate.length > 0 && (
-          <Section title='Posts'>
+          <Section title='最新文章'>
             <ul class='flex flex-col gap-y-1.5 sm:gap-y-2'>
               {allPostsByDate.map((p) => (
                 <li class='flex flex-col gap-x-2 sm:flex-row'>
@@ -91,7 +91,7 @@ if (!images[imagePath])
                 </li>
               ))}
             </ul>
-            <Button title='More posts' class='w-fit self-end' href='/blog' variant='ahead' />
+            <Button title='更多文章' class='w-fit self-end' href='/blog' variant='ahead' />
           </Section>
         )
       }
@@ -125,12 +125,12 @@ if (!images[imagePath])
       />
     </Section> */
       }
-      <Section title='Education'>
+      <Section title='教育经历'>
         <Card
           as='a'
-          heading='Jiangnan University'
-          subheading='Automation'
-          date='Sept 2025 - Present'
+          heading='江南大学'
+          subheading='自动化'
+          date='2025年9月 - 至今'
           href='https://www.jiangnan.edu.cn/'
         >
           {
@@ -184,9 +184,9 @@ if (!images[imagePath])
         />
       </Section> -->
 
-      <Section title='Skills'>
-        <SkillLayout title='Languages' skills={languages} />
-        <SkillLayout title='Learning' skills={points} />
+      <Section title='技能'>
+        <SkillLayout title='编程语言' skills={languages} />
+        <SkillLayout title='学习中' skills={points} />
       
       </Section>
     </div>

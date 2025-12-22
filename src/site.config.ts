@@ -7,17 +7,17 @@ export const theme: ThemeUserConfig = {
   /** Will be used in index page & copyright declaration */
   author: 'Maxton Niu',
   /** Description metadata for your website. Can be used in page metadata. */
-  description: 'Stay hungry, stay foolish',
+  description: '不时会分享些有趣的物或事',
   /** The default favicon for your site which should be a path to an image in the `public/` directory. */
   favicon: '/favicon/favicon.ico',
   /** The default social card image for your site which should be a path to an image in the `public/` directory. */
   socialCard: '/images/social-card.png',
   /** Specify the default language for this site. */
   locale: {
-    lang: 'en-US',
-    attrs: 'en_US',
+    lang: 'zh-CN',
+    attrs: 'zh_CN',
     // Date locale
-    dateLocale: 'en-US',
+    dateLocale: 'zh-CN',
     dateOptions: {
       day: 'numeric',
       month: 'short',
@@ -48,13 +48,13 @@ export const theme: ThemeUserConfig = {
   /** Configure the header of your site. */
   header: {
     menu: [
-      { title: 'Blog', link: '/blog' },
-      { title: 'Docs', link: '/docs' },
+      { title: '博客', link: '/blog' },
+      { title: '文档', link: '/docs' },
       // { title: 'Projects', link: '/projects' },全是作者的项目 之后再改吧，等自己有项目了再说
-      { title: 'Links', link: '/links' },
-      { title: 'About', link: '/about' },
-      { title: 'Archives', link: '/archives' },
-      { title: '中文', link: 'https://maxtonniu.com/' }
+      { title: '链接', link: '/links' },
+      { title: '关于', link: '/about' },
+      { title: '时间轴', link: '/archives' },
+      { title: 'English', link: 'https://maxtonniu.com/' }
     ]
   },
 
@@ -119,14 +119,14 @@ export const integ: IntegrationUserConfig = {
       // { date: '2025-03-16', content: 'A leakage of what?' },
       // { date: '2025-03-16', content: 'I have a full seat of water, like, full of water!' },
       // { date: '2025-03-16', content: 'Must be the water.' },
-      { date: '2025-12-21', content: "Let's add that to the words of wisdom." }
+      { date: '2025-12-21', content: "让我们增添一些聪慧" }
     ],
     // Yourself link info
     applyTip: [
-      { name: 'Name', val: theme.title },
-      { name: 'Desc', val: theme.description || 'Null' },
-      { name: 'Link', val: 'https://en.maxtonniu.com/' }, //记得改
-      // { name: 'Avatar', val: 'https://astro-pure.js.org/favicon/favicon.ico' }
+      { name: '名字', val: theme.title },
+      { name: '格言', val: theme.description || 'Null' },
+      { name: '链接', val: 'https://en.maxtonniu.com/' }, //记得改
+      { name: '头像', val: 'https://astro-pure.js.org/favicon/favicon.ico' }
     ],
     // Cache avatars in `public/avatars/` to improve user experience.
     cacheAvatar: false
@@ -148,10 +148,10 @@ export const integ: IntegrationUserConfig = {
     // - DummyJSON
     //如果这里要修改中文网页 这里的随机名言也要修改
 
-    // server: 'https://v1.hitokoto.cn/?c=i',  // 把这行的 // 去掉
-    // target: `(data) => (data.hitokoto || 'Error')` // 把这行的 // 去掉
-    server: 'https://dummyjson.com/quotes/random',
-    target: `(data) => (data.quote.length > 80 ? \`\${data.quote.slice(0, 80)}...\` : data.quote || 'Error')`
+    server: 'https://v1.hitokoto.cn/?c=i',  // 把这行的 // 去掉
+    target: `(data) => (data.hitokoto || 'Error')` // 把这行的 // 去掉
+    // server: 'https://dummyjson.com/quotes/random',
+    // target: `(data) => (data.quote.length > 80 ? \`\${data.quote.slice(0, 80)}...\` : data.quote || 'Error')`
   },
   // [Typography]
   // https://unocss.dev/presets/typography

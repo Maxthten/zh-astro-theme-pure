@@ -18,9 +18,9 @@ const docsByCate = docsCollection.reduce((acc: { [key: string]: typeof docsColle
 
 const docCategories = {
   ctf: 'CTF WP',
-  web: 'WEB',
-  rl: 'Reinforcement Learning',
-  misc: 'Miscellaneous',
+  web: 'WEB安全',
+  rl: '强化学习',
+  misc: '杂谈',
   //上面修改文件夹名字
 }
 
@@ -33,7 +33,7 @@ const { title = true, class: className, ...props } = Astro.props
 ---
 
 <docs-toc class={cn('not-prose', className)} {...props}>
-  {title && <h2 class='text-foreground font-medium'>DOCS</h2>}
+  {title && <h2 class='text-foreground font-medium'>文档列表</h2>}
   <ul class='mt-4 flex flex-col gap-y-5'>
     {
       Object.entries(docCategories).map(([id, title]: [string, string]) => (

@@ -34,7 +34,7 @@ import { Icon } from '../user'
         }
         <div class='flex w-full grow flex-row justify-end gap-x-3 sm:w-fit sm:gap-x-5'>
           <a class='px-1 py-2 transition-none sm:px-2' href='/search' title='Search'>
-            <span class='sr-only'>Search</span>
+            <span class='sr-only'>搜索</span>
             <Icon name='search' class='size-5' />
           </a>
         </div>
@@ -47,7 +47,7 @@ import { Icon } from '../user'
         id='toggleDarkMode'
         class='group/dark box-content size-5 rounded-md border p-1.5 transition-colors hover:bg-border sm:group-[.not-top]:rounded-xl'
       >
-        <span class='sr-only'>Dark Theme</span>
+        <span class='sr-only'>深色模式</span>
         <Icon class='system size-5 group-hover/dark:text-primary' name='computer' />
         <Icon class='light hidden size-5 group-hover/dark:text-primary' name='sun' />
         <Icon class='dark hidden size-5 group-hover/dark:text-primary' name='moon' />
@@ -56,7 +56,7 @@ import { Icon } from '../user'
         id='toggleMenu'
         class='rounded-md border p-1.5 transition-colors hover:bg-border sm:hidden sm:group-[.not-top]:rounded-xl'
       >
-        <span class='sr-only'>Menu</span>
+        <span class='sr-only'>菜单</span>
         <Icon class='size-5' name='menu' />
       </button>
     </div>
@@ -98,7 +98,19 @@ import { Icon } from '../user'
         // document.dispatchEvent(toggleDarkModeEvent)
         const newTheme = setTheme(undefined, true)
         darkModeBtn.dataset.theme = newTheme
-        showToast({ message: `Set theme to ${newTheme}` })
+
+          // 1. 定义一个翻译字典
+          const themeMap: any = {
+              'light': '浅色模式',
+              'dark': '深色模式',
+                'system': '跟随系统'
+                            }
+// 2. 翻译一下，如果没找到就显示原样
+              // 加了个 as string，强制告诉它是字符串
+            const themeName = themeMap[newTheme as string] || newTheme
+
+
+        showToast({ message: `主题已设置为 ${themeName}` })
       })
 
       // Menu

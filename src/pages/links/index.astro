@@ -7,9 +7,9 @@ import PageLayout from '@/layouts/CommonPage.astro'
 import FriendList from '@/components/links/FriendList.astro'
 
 const headings = [
-  { depth: 2, slug: 'common-links', text: 'Common Links' },
-  { depth: 2, slug: 'special-links', text: 'Special Links' },
-  { depth: 2, slug: 'apply-links', text: 'Apply Links' }
+  { depth: 2, slug: 'common-links', text: '友情链接' },
+  { depth: 2, slug: 'special-links', text: '特殊链接' },
+  { depth: 2, slug: 'apply-links', text: '申请链接' }
 ]
 
 const { friends } = links
@@ -17,25 +17,25 @@ const linksConf = config.integ.links
 // const linkEditPage = 'https://github.com/cworld1/astro-theme-pure/blob/main/public/links.json'
 ---
 
-<PageLayout title='Links' {headings} comment>
-  <p>They're sorted randomly.</p>
-  <h2 id='common-links'>Links</h2>
+<PageLayout title='链接' {headings} comment>
+  <p>排名不分先后</p>
+  <h2 id='common-links'>友情链接</h2>
   <FriendList list={friends[0]} />
   <!-- <Collapse title='Links with Bad Status'>
     <FriendList list={friends[1]} />
   </Collapse> -->
-  <Collapse title='Link History Book'>
+  <Collapse title='友链日志'>
     <Timeline events={linksConf.logbook} />
   </Collapse>
-  <h2 id='special-links'>Special Links</h2>
+  <h2 id='special-links'>特殊链接</h2>
   <FriendList list={friends[2]} />
 
-  <h2 id='apply-links'>Apply Links</h2>
-  <p>The site information (click to copy)：</p>
+  <h2 id='apply-links'>申请链接</h2>
+  <p>站点信息（点击复制）：</p>
   <blockquote class='not-prose grid grid-cols-[auto_1fr] gap-x-2 break-words border-s-4 ps-4'>
     {
       linksConf.applyTip.map(({ name, val }) => {
-        const script = `navigator.clipboard.writeText('${val}');document.dispatchEvent(new CustomEvent('toast',{detail:{message:'Copied "${val}" to clipboard!'}}))`
+        const script = `navigator.clipboard.writeText('${val}');document.dispatchEvent(new CustomEvent('toast',{detail:{message:'已将 "${val}" 复制到剪贴板！'}}))`
         return (
           <>
             <span class='text-end'>{name}:</span>

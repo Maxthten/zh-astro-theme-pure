@@ -5,37 +5,37 @@ import Substats from '@/components/about/Substats.astro'
 import ToolSection from '@/components/about/ToolSection.astro'
 
 const headings = [
-  { depth: 2, slug: 'hobbies', text: 'Hobbies' },
-  { depth: 2, slug: 'tools', text: 'Tools' },
-  { depth: 2, slug: 'gossips', text: 'Gossips' }
+  { depth: 2, slug: 'hobbies', text: '爱好' },
+  { depth: 2, slug: 'tools', text: '工具' },
+  { depth: 2, slug: 'gossips', text: '悄悄话' }
   // { depth: 2, slug: 'social-networks', text: 'Social Networks' },
   // { depth: 2, slug: 'gossips', text: 'Gossips' },
   // { depth: 2, slug: 'about-blog', text: 'About Blog' }
 ]
 ---
 
-<PageLayout title='About' {headings} comment>
-  <p>Automation Student / CTF Player</p>
+<PageLayout title='关于' {headings} comment>
+  <p>自动化专业/CTF</p>
   <p>
-    	Hi, I'm Maxton Niu, an Automation major at Jiangnan University (JNU).My primary interests lie in Web Security, and I am currently diving deep into Reinforcement Learning. I also possess a foundational understanding of hardware and PCB design.As a beginner building my knowledge base, I am actively wrestling with the complexities of mathematics, but I enjoy the challenge. I believe in simple and direct solutions to problems and aspire to make significant contributions to these fields in the future.
+    	你好，我是 Maxton Niu，一名来自江南大学（JNU）自动化专业的学生。我的技术栈主要聚焦于 Web 安全，同时也正在深入探索强化学习（Reinforcement Learning）领域。在硬件方面，我对 PCB 设计也有一定的实践认知。目前我正处于夯实基础的阶段，虽然数学的复杂性常让我感到挣扎，但我享受攻克难关的过程。作为一名初学者，我推崇简单、直接的问题解决方式，并期待未来能在这些前沿方向上有所建树。
   </p>
   <p>
-    Motto: Attention Is All You Need. <Spoiler>wobble babble</Spoiler>
+    格言: Attention Is All You Need. <Spoiler>歪比巴卜</Spoiler>
   </p>
   <!-- <Button title='Sponsor Me' class='w-fit' href='/projects#sponsorship' variant='ahead' /> -->
 
   {/* general-talk */}
-  <h2 id='hobbies'>Hobbies</h2>
+  <h2 id='hobbies'>爱好</h2>
   <ul>
-    <li>Badminton</li>
-    <li>Single-player Games</li>
-    <li>Movies & TV Series</li>
+    <li>羽毛球</li>
+    <li>单机游戏</li>
+    <li>影视作品</li>
     
   </ul>
 
   {/* tools */}
-  <h2 id='tools'>Tools</h2>
-  <p>Current support tools as follow:</p>
+  <h2 id='tools'>工具</h2>
+  <p>支撑我的工具如下</p>
   <!-- <ToolSection
     class='mb-5'
     title='Design'
@@ -68,41 +68,41 @@ const headings = [
   /> -->
   <ToolSection
     class='mb-5'
-    title='Productivity'
+    title='生产力'
     tools={[
       {
         name: 'Chrome',
-        description: 'Browser',
+        description: '浏览器',
         href: 'https://www.google.com/chrome/',
         icon: import('@/assets/tools/chrome.svg?raw')
       },
       {
         name: 'Microsoft Edge',
-        description: 'Browser',
+        description: '浏览器',
         href: 'https://www.microsoft.com/en-us/edge',
         icon: import('@/assets/tools/edge.svg?raw')
       },
        {
         name: 'Burp Suite',
-        description: 'Penetration Testing',
+        description: '渗透测试',
         href: 'https://portswigger.net/burp',
         icon: import('@/assets/tools/burpsuite.svg?raw')
       },
       {
         name: 'Typedown',
-        description: 'Markdown Editor',
+        description: 'Markdown 编辑器',
         href: 'https://github.com/byxiaozhi/Typedown',
         icon: import('@/assets/tools/typora.svg?raw')
       },
       {
         name: 'Docker Desktop',
-        description: 'Containerization',
+        description: '容器化工具',
         href: 'https://www.docker.com/products/docker-desktop/',
         icon: import('@/assets/tools/docker.svg?raw')
       },
       {
         name: 'Zotero',
-        description: 'Reference Manager',
+        description: '参考文献管理工具', 
         href: 'https://www.zotero.org/',
         icon: import('@/assets/tools/zotero.svg?raw')
       },
@@ -110,7 +110,7 @@ const headings = [
   />
   <ToolSection
     class='mb-5'
-    title='Development'
+    title='开发工具'
     tools={[
       {
         name: 'VS Code',
@@ -141,7 +141,7 @@ const headings = [
   />
   <ToolSection
     class='mb-5'
-    title='Environment'
+    title='环境'
     tools={[
       // {
       //   name: 'Arch Linux',
@@ -151,7 +151,7 @@ const headings = [
       // },
       {
         name: 'Ubuntu 24.04 LTS',
-        description: 'Linux Distribution',
+        description: 'Linux 发行版',
         href: 'https://ubuntu.com/',
         icon: import('@/assets/tools/ubuntu.svg?raw')
       },
@@ -163,7 +163,7 @@ const headings = [
       // },
       {
         name: 'Windows 11',
-        description: 'Laptop',
+        description: '笔记本',
         href: 'https://news.microsoft.com/windows11-general-availability/',
         icon: import('@/assets/tools/windows11.svg?raw')
       }
@@ -205,9 +205,9 @@ const headings = [
   /> -->
 
   {/* gossips */}
-  <h2 id='gossips'>Gossips</h2>
-  <Collapse title='Warning'>
-    Just kidding. What else do you want to know about me?
+  <h2 id='gossips'>悄悄话</h2>
+  <Collapse title='警告请勿阅读'>
+    开个玩笑。你还想了解我哪些方面？
   </Collapse>
 
   <!-- {/* about-blog */}
