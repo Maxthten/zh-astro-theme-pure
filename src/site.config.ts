@@ -54,7 +54,7 @@ export const theme: ThemeUserConfig = {
       { title: '链接', link: '/links' },
       { title: '关于', link: '/about' },
       { title: '时间轴', link: '/archives' },
-      { title: 'English', link: 'https://maxtonniu.com/' }
+      { title: 'English', link: 'https://en.maxtonniu.com/' }
     ]
   },
 
@@ -125,8 +125,8 @@ export const integ: IntegrationUserConfig = {
     applyTip: [
       { name: '名字', val: theme.title },
       { name: '格言', val: theme.description || 'Null' },
-      { name: '链接', val: 'https://en.maxtonniu.com/' }, //记得改
-      { name: '头像', val: 'https://astro-pure.js.org/favicon/favicon.ico' }
+      { name: '链接', val: 'https://zh.maxtonniu.com/' }, //记得改
+      { name: '头像', val: 'https://zh.maxtonniu.com/favicon/favicon.ico' }
     ],
     // Cache avatars in `public/avatars/` to improve user experience.
     cacheAvatar: false
