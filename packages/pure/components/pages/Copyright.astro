@@ -48,13 +48,13 @@ const shares = {
   {/* common info */}
   <div class='flex flex-row flex-wrap justify-start gap-x-5 gap-y-1 sm:gap-x-8'>
     <div class='flex gap-x-2 sm:flex-col'>
-      <span>Author</span>
+      <span>作者</span>
       <span class='text-sm text-foreground max-sm:place-self-center'>{config.author}</span>
     </div>
     {
       publishDate && (
         <div class='flex gap-x-2 sm:min-w-16 sm:flex-col'>
-          <span>Published at</span>
+          <span>发布于</span>
           <span class='text-sm text-foreground max-sm:place-self-center'>
             {getFormattedDate(publishDate, {
               month: 'long'
@@ -64,7 +64,7 @@ const shares = {
       )
     }
     <div class='flex gap-x-2 sm:flex-col'>
-      <span>Copyright</span>
+      <span>版权须知</span>
       <a
         class='text-sm text-foreground max-sm:place-self-center'
         href='https://creativecommons.org/licenses/by/4.0/'
