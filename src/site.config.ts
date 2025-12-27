@@ -54,7 +54,8 @@ export const theme: ThemeUserConfig = {
       { title: '链接', link: '/links' },
       { title: '关于', link: '/about' },
       { title: '时间轴', link: '/archives' },
-      { title: 'English', link: '#switch-lang' }
+      { title: 'English', link: '#switch-lang' },
+      // { title: '新年限定', link: '/newyear' }
     ]
   },
 

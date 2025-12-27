@@ -44,6 +44,76 @@
             pointer-events: none; opacity: 0; transition: opacity 1s;
             letter-spacing: 2px;
         }
+
+        /* [新增] 底部交互提示语 (戳戳屏幕有惊喜) */
+        #touch-hint {
+            position: absolute;
+            bottom: 12%; /* 位于按钮上方一点点 */
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0; /* 初始隐藏 */
+            transition: opacity 1s;
+            letter-spacing: 1px;
+            z-index: 19;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        /* [修改] 底部控制栏样式 - 改为 Flex 布局以支持左右分开 */
+        #controls-layer {
+            position: absolute;
+            bottom: 3%; /* 默认位置，可在 JS CONFIG 中微调 */
+            left: 0;
+            width: 100%;
+            z-index: 20;
+            opacity: 0; /* 初始隐藏，进入最终页面后显示 */
+            transition: opacity 1.5s;
+            pointer-events: none; /* 自身不挡点击，子元素按钮挡点击 */
+            padding-top: 20px; 
+            
+            /* [NEW] 使用 Flexbox 实现按钮分离 */
+            display: flex;
+            justify-content: center; /* 这里的具体间距由 JS 动态控制 gap */
+            align-items: center;
+        }
+
+        .control-btn {
+            pointer-events: auto;
+            display: inline-block;
+            /* margin: 0 5px;  <-- 删除原本的 margin，改用 gap 控制 */
+            padding: 8px 16px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1); /* 半透明背景 */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(4px); /* 磨砂玻璃效果 */
+            transition: all 0.3s;
+            text-decoration: none;
+            box-shadow: none; /* 移除原来的发光阴影，保持低调 */
+            background-image: none; /* 移除原来的渐变 */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .control-btn.active {
+            background: rgba(255, 77, 77, 0.4); /* 激活状态稍微红一点 */
+            border-color: #ff4d4d;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -56,51 +126,301 @@
 
     <div id="hint">点击屏幕继续...</div>
 
+    <div id="touch-hint">戳戳屏幕有惊喜</div>
+
+    <div id="controls-layer">
+        <button class="control-btn" id="btn-auto" onclick="toggleAutoFire()">自动放烟花: 关</button>
+        <button class="control-btn" onclick="goBlog()">返回博客</button>
+    </div>
+
     <canvas id="canvas"></canvas>
 
     <script is:inline>
         // ================= 自定义调整区 =================
         const CONFIG = {
-            transitionTexts: ["辞旧迎新", "万象更新"],
+            transitionTexts: ["前程似锦", "学业有成","平安喜乐"],
             carouselTexts: ["财源广进", "吉星高照", "心想事成", "一帆风顺", "未来可期"],
             
-            // --- 动画参数 ---
-            rotationSpeed: 0.0012, // 旋转速度
-            particleEase: 0.05,    // 粒子汇聚速度
+            // --- 1. 字体大小控制 (NEW! 可以在这里调整字的大小) ---
+            fontSizes: {
+                // [开场文字] (输入名字后的那个大字)
+                introMobile: 85,    // 手机端大小 (太大可能会超出屏幕)
+                introDesktop:200,   // 电脑端大小
+
+                // [最终页面] 上半部分的静态字
+                finalTitleMobile: 55,   // "祝"
+                finalTitleDesktop: 80,
+                
+                finalNameMobile: 90,    // 你的名字
+                finalNameDesktop: 130,
+                
+                finalYearMobile: 70,    // "2026"
+                finalYearDesktop: 100,
+                
+                // [最终页面] 底部旋转圆环的字
+                carouselMobile: 55, 
+                carouselDesktop: 100
+            },
+
+            // --- 2. 粒子密度控制 (核心升级：支持小数了！) ---
+            // 数值代表“每隔多少个像素取一个点”。
+            // 1 = 最密 (100% 还原)
+            // 1.5 = 适中 (推荐手机端使用这个！)
+            // 2 = 稀疏 (只有 1 的 25% 粒子量)
+            // 数值越大 -> 粒子越少，画面越空，但性能越好。
+            // 数值越小 -> 粒子越多，画面越细腻，但可能卡顿。
+            density: {
+                // 开场阶段
+                introMobile: 1.4,    // ★ 建议设置 1.3 ~ 1.6 之间
+                introDesktop: 2,
+                
+                // 最终阶段 (因为字多，建议比上面稍微大一点点，防止太乱)
+                finalMobile: 1.6,    // ★ 建议设置 2.0 ~ 2.5
+                finalDesktop: 3
+            },
+
+            // --- 3. 视觉与发光控制 ---
+            visuals: {
+                // [全局发光] (Global Lighter)
+                // true: 开启暴力叠加模式，所有粒子都发光。缺点：重叠多了会变成纯白一片(过曝)。
+                // false: 建议关闭，保持颜色纯正。
+                globalAdditive: false, 
+
+                // [呼吸高亮] (Twinkle Lighter) ★ 推荐开启
+                // true: 只有“正在闪烁”的粒子才开启高亮叠加。
+                // 效果：普通粒子是磨砂质感，闪烁粒子是霓虹光感，层次丰富，不会过曝。
+                twinkleAdditive: true,
+
+                // [基础亮度]
+                // 范围 0.1(暗) ~ 1.0(亮)。
+                // 如果觉得画面太刺眼，改小这个；如果觉得太暗淡，改大这个。
+                alphaFactor: 0.8
+            },
+
+            // --- 4. 粒子呼吸/闪烁参数 ---
+            twinkle: {
+                enabled: true,       // 总开关
+                probability: 0.9,    // 闪烁密度 (0.7 = 70% 的粒子会参与闪烁，30% 是死粒子)
+                minOpacity: 0.1,     // [明暗对比度] 闪烁时最暗能到多少 (越低对比度越强，星星感越强)
+                maxOpacity: 1.0,     // 闪烁时最亮能到多少
+                speedMin: 0.03,      // 闪烁速度下限 (数值越小闪得越慢)
+                speedMax: 0.06,      // 闪烁速度上限
+                
+                // [锐化系数] (Sharpness)
+                // 1 = 像呼吸灯一样平滑 (容易显得糊)
+                // 3 = 像星星一样尖锐 (暗的时间长，亮的一瞬间很亮)
+                // ★ 建议 2.5 ~ 3.0，解决“泛糊”的神器
+                sharpness: 2.5  
+            },
+
+            textColors: {
+                initialMode: 'gold', // 'gold', 'red', 'rainbow', 'white'
+                randomize: false     // 是否随机变色
+            },
+
+            // --- 5. 动画物理参数 ---
+            rotationSpeed: 0.0012, // 底部圆环旋转速度
+            particleEase: 0.05,    // 粒子飞行的刹车力度 (0.01=超慢, 0.1=超快)
+
+            // --- 6. 3D 布局参数 ---
+            // [中心高度] 0=顶部, 0.5=屏幕正中间, 1=底部
+            centerYMobile: 0.53,   
+            centerYDesktop: 0.5,   
             
-            // --- 3D 圆环位置参数 (PC/手机 分离设置) ---
-            // 高度比例：0在顶部，1在底部，0.5在中间
-            // 建议：手机端因为屏幕窄，可以稍微放低一点；电脑端宽，可以居中一点
-            centerYMobile: 0.55,   
-            centerYDesktop: 0.5, 
+            // [圆环半径] 屏幕宽度的倍数。太大字会出屏幕，太小字挤在一起。
+            carouselRadiusRatioMobile: 0.45, 
+            carouselRadiusRatioDesktop: 0.2, 
 
-            // --- 3D 圆环半径参数 ---
-            carouselRadiusRatioMobile: 0.45,
-            carouselRadiusRatioDesktop: 0.2,
-
-            // --- 视角参数 ---
-            // 倾斜角度：0是平视，1是完全俯视
-            tiltFactorMobile: 0.5,
-            tiltFactorDesktop: 0.4,
-            // 视距：越小透视感越强（近大远小更夸张）
-            fovMobile: 1000,
+            // [俯视角度] 0=平视(一条线), 1=完全俯视(正圆)
+            tiltFactorMobile: 0.5,   
+            tiltFactorDesktop: 0.4,  
+            
+            // [透视感] 数值越小，近大远小的效果越夸张。
+            fovMobile: 1000,   
             fovDesktop: 1400,
 
-            // --- 粒子密度 (数值越小越清晰，但性能消耗越大) ---
-            // 建议：手机设为 2 或 3，电脑设为 2 或 1
-            mobileStep: 2, 
-            desktopStep: 2
+            // ===============================================
+            // ====== [新增功能] 漂浮背景配置区 ======
+            // ===============================================
+            background: {
+                enabled: true,       // 是否开启背景漂浮物
+                
+                // [升级] 样式选择: 'mix'(混合推荐), 'circle'(圆), 'cross'(十字), 'ring'(空心圈)
+                style: 'mix',
+
+                // 背景粒子数量 (粒子变大了，数量要减少，否则电脑上会乱)
+                countMobile: 40,     
+                countDesktop: 80,
+
+                // 漂浮速度 (越小越慢，营造太空感)
+                speed: 0.3,           
+
+                // 粒子大小范围 (★关键修改：最小值调大，最大值调大，电脑端才看得清)
+                sizeMin: 2.0,
+                sizeMax: 8.0,
+
+                // 颜色与透明度 (建议淡一点，不要抢主角风头)
+                color: '255, 255, 255', // RGB 颜色
+                opacity: 0.4            // 基础透明度
+            },
+
+            // ===============================================
+            // ====== [新增功能] 烟花配置区 (Fireworks) ======
+            // ===============================================
+            fireworks: {
+                // 上升速度 (数值越大越快)
+                launchSpeedMobile: 5,
+                launchSpeedDesktop: 6,
+
+                // [NEW] 上升时的抖动幅度 (模拟飞行不稳)
+                // 0 = 笔直上升, 3 = 明显S型抖动
+                ascentWobble: 3, 
+
+                // 爆炸后粒子数量 (手机少一点防卡)
+                explosionCountMobile: 60,
+                explosionCountDesktop: 120,
+
+                // 爆炸力度 (Spread)
+                explosionForce: 6,
+                
+                // 重力 (烟花下坠的感觉)
+                gravity: 0.05,
+                
+                // 阻力 (空气阻力，防止飞太远)
+                friction: 0.96,
+
+                // [NEW] 粒子残留时间控制 (数值越小，消失越慢)
+                // 之前是 0.015~0.03，现在调小，让它留久一点
+                decayMin: 0.003,
+                decayMax: 0.008,
+
+                // ========================================
+                // ====== [全新] 烟花样式与文字控制区 ======
+                // ========================================
+                patterns: {
+                    // 爆炸形状控制：是否启用多种花样（圆形、圆环、球体等）
+                    // false = 只用最普通的随机炸开
+                    // true = 随机出现各种几何形状
+                    enabled: true, 
+
+                    // 爆炸范围缩放 (Scale) - 想要炸得更大改这里
+                    scaleMobile: 1.2,
+                    scaleDesktop: 1.5 
+                },
+
+                // [★ 核心功能] 文字烟花配置
+                // 炸开后变成祝福语，而不是普通火花
+                textFireworks: {
+                    enabled: true,
+                    
+                    // 出现的概率 (0.0 ~ 1.0)
+                    // 0.3 表示 30% 的烟花会炸成文字，70% 是普通烟花
+                    probability: 0.3, 
+
+                    // 祝福语列表 (炸开时随机选一个)
+                    words: ["福", "乐", "顺", "发", "吉", "安"],
+                    
+                    // 文字粒子的大小
+                    particleSizeMobile: 1.8,
+                    particleSizeDesktop: 2.5,
+
+                    // [NEW] 文字炸开的范围大小 (值越大，字炸得越开)
+                    explosionScaleMobile: 1.5,
+                    explosionScaleDesktop: 2.2,
+
+                    // 文字烟花的持续时间 (数值越小消失越慢，建议比普通烟花慢一点以便看清)
+                    decaySpeed: 0.004,
+
+                    // [NEW] 颜色控制模式
+                    // 'gold'   = 强制全金
+                    // 'random' = 每次炸开一种随机纯色 (推荐)
+                    // 'fixed'  = 强制固定颜色 (需设置 fixedColor)
+                    colorMode: 'random', 
+                    
+                    // 当 colorMode 为 'fixed' 时生效，格式 '255, 100, 100'
+                    fixedColor: '255, 255, 255'
+                },
+
+                // ========================================
+                // ====== [全新] 尾烟配置 (Smoke Trail) ======
+                // ========================================
+                smoke: {
+                    enabled: true,
+                    
+                    // 尾烟颜色 (RGB格式)
+                    color: '180, 180, 180',
+                    
+                    // 尾烟大小
+                    sizeMobile: 1.5,
+                    sizeDesktop: 2.5,
+                    
+                    // 尾烟消散速度 (数值越大消失越快)
+                    decaySpeed: 0.02,
+                    
+                    // 尾烟产生频率 (1 = 每帧都产, 2 = 每2帧产一次)
+                    interval: 2,
+                    
+                    // 尾烟左右扩散随机性
+                    jitter: 0.5
+                }
+            },
+
+            // ===============================================
+            // ====== [新增功能] 底部 UI 控制区 ======
+            // ===============================================
+            ui: {
+                // 博客跳转链接
+                blogUrl: "https://zh.maxtonniu.com",
+
+                // 底部按钮栏距离底部的距离 (CSS 格式)
+                bottomPosition: "4%",
+
+                // [NEW] 两个按钮之间的间距 (px) - 可以把两个按钮分开
+                buttonGapMobile: 60,
+                buttonGapDesktop: 100,
+
+                // [NEW] 底部防误触区域高度 (px)
+                // 点击屏幕底部这个高度内，不会触发烟花，只会触发按钮
+                safeZoneHeightMobile: 100,
+                safeZoneHeightDesktop: 80,
+
+                // [NEW] 提示语文字
+                touchHintText: "戳戳屏幕有惊喜",
+
+                // 自动放烟花的参数
+                autoFire: {
+                    minInterval: 300,  // 最快多久放一次 (毫秒)
+                    maxInterval: 1200, // 最慢多久放一次 (毫秒)
+                    
+                    // [NEW] 每次并发最多放几个? (1~3)
+                    maxConcurrent: 3
+                }
+            }
         };
         // ===============================================
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d'); 
         
+        // 应用 UI 配置位置
+        const controlsLayer = document.getElementById('controls-layer');
+        controlsLayer.style.bottom = CONFIG.ui.bottomPosition;
+        document.getElementById('touch-hint').innerText = CONFIG.ui.touchHintText;
+
         let width, height, dpr;
         let particles = []; 
         let staticTopParticles = []; 
         let carouselGroups = [];
         let renderQueue = [];
+        
+        // [新增] 背景粒子数组
+        let bgParticles = [];
+        
+        // [新增] 烟花相关数组
+        let fireworks = []; // 正在上升的火箭
+        let sparks = [];    // 爆炸后的火花
+        // [新增] 尾烟数组
+        let smokeParticles = [];
 
         let isMobile = false;
         let baseParticleSize = 1.8; 
@@ -108,6 +428,97 @@
         let userName = "";
         let isFinalState = false; 
         let globalRotation = 0;
+
+        // 自动烟花相关
+        let autoFireTimer = null;
+        let isAutoFiring = false;
+        
+        // 提示语状态
+        let hasTouchedInFinal = false;
+
+        // [新增] 初始化背景粒子 (支持多种形状和旋转)
+        function initBackground() {
+            if (!CONFIG.background.enabled) return;
+            bgParticles = [];
+            const count = isMobile ? CONFIG.background.countMobile : CONFIG.background.countDesktop;
+            
+            for (let i = 0; i < count; i++) {
+                // 决定形状
+                let shapeType = 'circle';
+                if (CONFIG.background.style === 'mix') {
+                    const r = Math.random();
+                    if (r < 0.4) shapeType = 'circle';      // 40% 实心圆
+                    else if (r < 0.7) shapeType = 'ring';   // 30% 空心圈
+                    else shapeType = 'cross';               // 30% 十字星
+                } else {
+                    shapeType = CONFIG.background.style;
+                }
+
+                bgParticles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: CONFIG.background.sizeMin + Math.random() * (CONFIG.background.sizeMax - CONFIG.background.sizeMin),
+                    // 随机速度向量 (-1 ~ 1) * speed
+                    vx: (Math.random() - 0.5) * CONFIG.background.speed,
+                    vy: (Math.random() - 0.5) * CONFIG.background.speed,
+                    // 随机透明度差异
+                    alphaFactor: 0.3 + Math.random() * 0.7,
+                    shape: shapeType,
+                    rotation: Math.random() * Math.PI, // 初始旋转角度
+                    rotSpeed: (Math.random() - 0.5) * 0.02 // 自转速度
+                });
+            }
+        }
+
+        // [新增] 更新并绘制背景 (支持样式绘制)
+        function updateAndDrawBackground() {
+            if (!CONFIG.background.enabled) return;
+            
+            ctx.fillStyle = `rgba(${CONFIG.background.color}, 1)`;
+            ctx.strokeStyle = `rgba(${CONFIG.background.color}, 1)`;
+            ctx.lineWidth = 1.5; // 线条粗细
+
+            bgParticles.forEach(p => {
+                // 移动
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rotation += p.rotSpeed; // 自转
+                
+                // 边界循环 (出去了从另一边回来)
+                // 稍微留点余量(50px)防止刚好在边缘闪烁
+                if (p.x < -50) p.x = width + 50;
+                if (p.x > width + 50) p.x = -50;
+                if (p.y < -50) p.y = height + 50;
+                if (p.y > height + 50) p.y = -50;
+                
+                // 绘制
+                ctx.globalAlpha = CONFIG.background.opacity * p.alphaFactor;
+                ctx.beginPath();
+                
+                if (p.shape === 'circle') {
+                    // 实心圆
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (p.shape === 'ring') {
+                    // 空心圈 (画稍微大一点点)
+                    ctx.arc(p.x, p.y, p.size * 1.2, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (p.shape === 'cross') {
+                    // 十字星 (带旋转)
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    const s = p.size * 1.5; 
+                    ctx.moveTo(-s, 0); ctx.lineTo(s, 0);
+                    ctx.moveTo(0, -s); ctx.lineTo(0, s);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+            
+            // 重置透明度以免影响后续绘制
+            ctx.globalAlpha = 1;
+        }
 
         function resize() {
             dpr = window.devicePixelRatio || 1;
@@ -120,6 +531,13 @@
             ctx.scale(dpr, dpr);
             isMobile = width < 768;
             baseParticleSize = isMobile ? 1.6 : 2.0;
+
+            // [新增] 动态应用按钮间距
+            const gap = isMobile ? CONFIG.ui.buttonGapMobile : CONFIG.ui.buttonGapDesktop;
+            document.getElementById('controls-layer').style.gap = `${gap}px`;
+
+            // [新增] 每次调整窗口大小时重置背景
+            initBackground();
         }
         window.addEventListener('resize', resize);
         resize();
@@ -128,7 +546,8 @@
             if (type === 'rainbow') return `hsl(${Math.random() * 360}, 90%, 65%)`;
             if (type === 'gold') return `hsl(${35 + Math.random() * 15}, 100%, 60%)`;
             if (type === 'red') return `hsl(${340 + Math.random() * 20}, 100%, 60%)`;
-            return `hsl(0, 0%, 100%)`;
+            if (type === 'white') return `hsl(0, 0%, 95%)`; 
+            return `hsl(45, 100%, 60%)`; 
         }
 
         class Particle {
@@ -139,31 +558,70 @@
                 this.ty = y;
                 this.relX = 0;
                 this.relY = 0;
-                this.color = getRandomColor('gold');
+                this.color = getRandomColor('gold'); 
                 this.alpha = 1;
+
+                this.isTwinkler = CONFIG.twinkle.enabled && (Math.random() < CONFIG.twinkle.probability);
+                this.twinklePhase = Math.random() * Math.PI * 2;
+                this.twinkleSpeed = CONFIG.twinkle.speedMin + Math.random() * (CONFIG.twinkle.speedMax - CONFIG.twinkle.speedMin);
             }
 
             update() {
                 this.x += (this.tx - this.x) * CONFIG.particleEase;
                 this.y += (this.ty - this.y) * CONFIG.particleEase;
+                
+                if (this.isTwinkler) {
+                    this.twinklePhase += this.twinkleSpeed;
+                }
             }
 
-            draw(scale = 1, forceX = null, forceY = null, opacity = 1) {
-                ctx.globalAlpha = this.alpha * opacity;
+            draw(scale = 1, forceX = null, forceY = null, baseAlpha = 1) {
+                let currentAlpha = this.alpha * baseAlpha;
+
+                // 锐化的呼吸算法
+                if (this.isTwinkler) {
+                    const rawSin = Math.sin(this.twinklePhase);
+                    const normalizedWave = (rawSin + 1) / 2;
+                    const sharpWave = Math.pow(normalizedWave, CONFIG.twinkle.sharpness);
+                    const range = CONFIG.twinkle.maxOpacity - CONFIG.twinkle.minOpacity;
+                    const twinkleFactor = CONFIG.twinkle.minOpacity + sharpWave * range;
+                    currentAlpha *= twinkleFactor;
+                }
+                
+                currentAlpha *= CONFIG.visuals.alphaFactor;
+
+                if (currentAlpha < 0.01) return;
+
+                if (CONFIG.visuals.globalAdditive) {
+                    ctx.globalCompositeOperation = 'lighter';
+                } else if (this.isTwinkler && CONFIG.visuals.twinkleAdditive) {
+                    // 仅在波峰高亮时启用叠加
+                    if (currentAlpha > 0.3) {
+                         ctx.globalCompositeOperation = 'lighter';
+                    } else {
+                         ctx.globalCompositeOperation = 'source-over';
+                    }
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+
+                ctx.globalAlpha = currentAlpha;
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 const drawX = forceX !== null ? forceX : this.x;
                 const drawY = forceY !== null ? forceY : this.y;
                 let s = baseParticleSize * scale;
-                // 限制最大最小尺寸，防止近处粒子过大挡住视线
                 s = Math.max(0.5, Math.min(s, baseParticleSize * 4)); 
                 ctx.arc(drawX, drawY, s, 0, Math.PI * 2);
                 ctx.fill();
+                
+                ctx.globalCompositeOperation = 'source-over'; 
                 ctx.globalAlpha = 1;
             }
         }
 
-        function sampleText(text, targetFontSize, colorType = 'gold') {
+        // 修改核心：支持小数步长 (Density Control Logic Upgrade)
+        function sampleText(text, targetFontSize, colorType = 'gold', stepOverride = null) {
             const tmpCanvas = document.createElement('canvas');
             const tCtx = tmpCanvas.getContext('2d');
             tCtx.font = `bold ${targetFontSize}px "Microsoft YaHei", sans-serif`;
@@ -181,13 +639,27 @@
             const idata = tCtx.getImageData(0, 0, width, height);
             const data = idata.data;
             const points = [];
-            // 此处使用 separated step config
-            const currentStep = isMobile ? CONFIG.mobileStep : CONFIG.desktopStep;
             
+            // 确定采样步长
+            let currentStep;
+            if (stepOverride) {
+                currentStep = stepOverride;
+            } else {
+                currentStep = isMobile ? CONFIG.density.introMobile : CONFIG.density.introDesktop;
+            }
+            
+            // 核心修改：使用 Math.floor 支持浮点数坐标采样
             for (let y = 0; y < height; y += currentStep) {
                 for (let x = 0; x < width; x += currentStep) {
-                    if (data[(y * width + x) * 4 + 3] > 128) {
-                        points.push({ x: x, y: y, colorType: colorType });
+                    // 将浮点坐标取整，映射到像素数组索引
+                    const inY = Math.floor(y);
+                    const inX = Math.floor(x);
+                    
+                    // 边界检查，防止小数累加导致的溢出
+                    if (inY >= height || inX >= width) continue;
+
+                    if (data[(inY * width + inX) * 4 + 3] > 128) {
+                        points.push({ x: inX, y: inY, colorType: colorType });
                     }
                 }
             }
@@ -198,16 +670,29 @@
             isFinalState = true;
             particles = []; staticTopParticles = []; carouselGroups = [];
 
-            // --- 上半部分 2D 静态 ---
+            // 显示控制栏
+            document.getElementById('controls-layer').style.opacity = 1;
+            
+            // [新增] 显示戳戳屏幕提示
+            if (!hasTouchedInFinal) {
+                document.getElementById('touch-hint').style.opacity = 1;
+            }
+
             let topY_Center = height * 0.15; 
             let midY_Center = height * 0.30; 
             let botY_Center = height * 0.45; 
-            let titleSize = isMobile ? 55 : 70;
-            let nameSize = isMobile ? 90 : 130; 
-            let yearSize = isMobile ? 70 : 100;
-            const p1 = sampleText("祝", titleSize, 'red');
-            const p2 = sampleText(userName, nameSize, 'gold');
-            const p3 = sampleText("2026", yearSize, 'gold');
+            
+            // 获取配置的字体大小
+            let titleSize = isMobile ? CONFIG.fontSizes.finalTitleMobile : CONFIG.fontSizes.finalTitleDesktop;
+            let nameSize = isMobile ? CONFIG.fontSizes.finalNameMobile : CONFIG.fontSizes.finalNameDesktop;
+            let yearSize = isMobile ? CONFIG.fontSizes.finalYearMobile : CONFIG.fontSizes.finalYearDesktop;
+            
+            // 获取 Final 阶段的密度
+            const finalStep = isMobile ? CONFIG.density.finalMobile : CONFIG.density.finalDesktop;
+
+            const p1 = sampleText("祝", titleSize, 'red', finalStep);
+            const p2 = sampleText(userName, nameSize, 'gold', finalStep);
+            const p3 = sampleText("2026", yearSize, 'gold', finalStep);
 
             [...p1, ...p2, ...p3].forEach(p => {
                 let part = new Particle(width/2, height/2);
@@ -223,13 +708,12 @@
                 staticTopParticles.push(part);
             });
 
-            // --- 底部 3D 倾斜圆环 ---
-            let carouselSize = isMobile ? 55 : 75; 
+            let carouselSize = isMobile ? CONFIG.fontSizes.carouselMobile : CONFIG.fontSizes.carouselDesktop;
             let list = CONFIG.carouselTexts;
             let angleStep = (Math.PI * 2) / list.length;
-
+            
             list.forEach((text, index) => {
-                const points = sampleText(text, carouselSize, 'rainbow');
+                const points = sampleText(text, carouselSize, 'rainbow', finalStep);
                 let group = {
                     baseAngle: index * angleStep,
                     parts: []
@@ -248,18 +732,32 @@
         }
 
         function updateMainText(text) {
-            let size = isMobile ? 85 : 160;
+            let size = isMobile ? CONFIG.fontSizes.introMobile : CONFIG.fontSizes.introDesktop;
+            // 如果名字太长，自动缩小一点
             if(text.length > 4) size *= 0.7;
-            const points = sampleText(text, size);
+            
+            const introStep = isMobile ? CONFIG.density.introMobile : CONFIG.density.introDesktop;
+            const points = sampleText(text, size, 'gold', introStep);
+            
             if (particles.length < points.length) {
                 for(let i=0; i<points.length-particles.length; i++) particles.push(new Particle(width/2, height/2));
             } else {
                 for(let i=points.length; i<particles.length; i++) particles[i].alpha = 0;
             }
+            
+            let targetColorMode = CONFIG.textColors.initialMode;
+            if (CONFIG.textColors.randomize) {
+                const modes = ['gold', 'red', 'rainbow', 'white'];
+                targetColorMode = modes[Math.floor(Math.random() * modes.length)];
+            }
+
             points.sort(() => Math.random()-0.5);
             particles.forEach((p, i) => {
                 if (i < points.length) {
-                    p.tx = points[i].x; p.ty = points[i].y; p.alpha = 1; p.color = getRandomColor('gold');
+                    p.tx = points[i].x; 
+                    p.ty = points[i].y; 
+                    p.alpha = 1; 
+                    p.color = getRandomColor(targetColorMode);
                 }
             });
         }
@@ -290,10 +788,328 @@
             }, 300);
         }
 
+        // ===============================================
+        // ====== [新增功能] 烟花逻辑 (Fireworks Logic) ======
+        // ===============================================
+
+        // [新增] 创建尾烟粒子
+        function createSmoke(x, y) {
+            if (!CONFIG.fireworks.smoke.enabled) return;
+            
+            const size = isMobile ? CONFIG.fireworks.smoke.sizeMobile : CONFIG.fireworks.smoke.sizeDesktop;
+            smokeParticles.push({
+                x: x + (Math.random() - 0.5) * CONFIG.fireworks.smoke.jitter * 5,
+                y: y,
+                size: size,
+                alpha: 0.5, // 初始透明度
+                vx: (Math.random() - 0.5) * 0.3, // 轻微飘动
+                vy: (Math.random() * 0.5),       // 轻微下沉
+                decay: CONFIG.fireworks.smoke.decaySpeed
+            });
+        }
+
+        // [新增] 更新并绘制尾烟
+        function updateAndDrawSmoke() {
+            if (!CONFIG.fireworks.smoke.enabled) return;
+
+            ctx.fillStyle = `rgba(${CONFIG.fireworks.smoke.color}, 1)`;
+            
+            for (let i = smokeParticles.length - 1; i >= 0; i--) {
+                let s = smokeParticles[i];
+                s.x += s.vx;
+                s.y += s.vy;
+                s.alpha -= s.decay;
+                
+                if (s.alpha <= 0) {
+                    smokeParticles.splice(i, 1);
+                    continue;
+                }
+                
+                ctx.globalAlpha = s.alpha;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function launchFirework(targetX, targetY) {
+            // 发射一个“火箭”
+            const speed = isMobile ? CONFIG.fireworks.launchSpeedMobile : CONFIG.fireworks.launchSpeedDesktop;
+            fireworks.push({
+                x: targetX, // 从点击的X轴正下方发射 (初始X)
+                baseX: targetX, // 记录基准线，用于计算抖动
+                y: height,  // 屏幕底部
+                tx: targetX,
+                ty: targetY,
+                speed: speed,
+                color: getRandomColor('rainbow'), // 随机颜色
+                wobblePhase: Math.random() * Math.PI * 2, // 初始抖动相位
+                tick: 0 // 用于控制尾烟生成频率
+            });
+        }
+
+        // [升级] 爆炸逻辑 - 支持图案和文字
+        function createExplosion(x, y, color) {
+            // 1. 判断是否触发文字烟花 (概率触发)
+            const textCfg = CONFIG.fireworks.textFireworks;
+            if (textCfg.enabled && Math.random() < textCfg.probability) {
+                createWordExplosion(x, y);
+                return; // ★ 如果是文字烟花，就不要再产生普通火花了
+            }
+
+            // 2. 如果不是文字，则使用几何图案爆炸
+            const count = isMobile ? CONFIG.fireworks.explosionCountMobile : CONFIG.fireworks.explosionCountDesktop;
+            const scaleMul = isMobile ? CONFIG.fireworks.patterns.scaleMobile : CONFIG.fireworks.patterns.scaleDesktop;
+            
+            // 决定当前这个烟花的形状
+            let patternType = 'sphere'; // 默认圆形
+            if (CONFIG.fireworks.patterns.enabled) {
+                const r = Math.random();
+                if (r < 0.5) patternType = 'sphere';        // 50% 正常圆形
+                else if (r < 0.75) patternType = 'ring';    // 25% 环形
+                else patternType = 'burst';                 // 25% 炸裂星形
+            }
+
+            for (let i = 0; i < count; i++) {
+                let angle, speed;
+
+                if (patternType === 'ring') {
+                    // 环形：角度随机，速度固定
+                    angle = Math.random() * Math.PI * 2;
+                    speed = CONFIG.fireworks.explosionForce * 0.8 * scaleMul; // 环形稍微整齐点
+                } else if (patternType === 'burst') {
+                    // 星形：分几束
+                    const arms = 8;
+                    const armAngle = (Math.PI * 2) / arms;
+                    const fuzzy = (Math.random() - 0.5) * 0.5; // 稍微散开点
+                    const baseAngle = Math.floor(Math.random() * arms) * armAngle;
+                    angle = baseAngle + fuzzy;
+                    speed = Math.random() * CONFIG.fireworks.explosionForce * 1.2 * scaleMul;
+                } else {
+                    // 默认球形：完全随机
+                    angle = Math.random() * Math.PI * 2;
+                    speed = Math.random() * CONFIG.fireworks.explosionForce * scaleMul;
+                }
+
+                sparks.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1,
+                    decay: CONFIG.fireworks.decayMin + Math.random() * (CONFIG.fireworks.decayMax - CONFIG.fireworks.decayMin), 
+                    color: color,
+                    isText: false // 标记这不是文字粒子
+                });
+            }
+        }
+
+        // [新增] 文字爆炸逻辑 - 升级版：由中心向外炸开
+        function createWordExplosion(cx, cy) {
+            const cfg = CONFIG.fireworks.textFireworks;
+            const word = cfg.words[Math.floor(Math.random() * cfg.words.length)];
+            
+            // 临时增大字体采样，保证文字清晰
+            const fontSize = isMobile ? 60 : 100; 
+            
+            // 使用现有的 sampleText 采样，步长可以稍微大一点（稀疏一点）
+            // 这里我们只需要相对坐标
+            const points = sampleText(word, fontSize, 'gold', isMobile ? 2 : 3);
+            
+            // [NEW] 确定文字颜色 - 保证单字纯色
+            let explosionColor = 'hsl(45, 100%, 60%)'; // 默认金
+            if (cfg.colorMode === 'random') {
+                // 随机取一个彩虹色，但全字统一
+                explosionColor = getRandomColor('rainbow');
+            } else if (cfg.colorMode === 'fixed') {
+                explosionColor = `rgb(${cfg.fixedColor})`;
+            } else {
+                // 'gold'
+                explosionColor = getRandomColor('gold');
+            }
+
+            // [NEW] 获取炸开力度比例
+            const scaleForce = isMobile ? cfg.explosionScaleMobile : cfg.explosionScaleDesktop;
+
+            points.forEach(p => {
+                // p.x, p.y 是基于 canvas 中心的，需要转换成相对于爆炸中心 cx, cy 的偏移向量
+                const relX = p.x - width / 2;
+                const relY = p.y - height / 2;
+                
+                // ★ 关键修改：粒子出生在中心 cx, cy
+                // 然后速度方向设为 relX, relY，这样它们就会“炸”到文字形状的位置去
+                
+                sparks.push({
+                    x: cx, 
+                    y: cy,
+                    // 速度 = 距离 * 系数。这样远的粒子飞得快，近的飞得慢，最终同时到达形状
+                    // 0.1 是个经验系数，让它炸得自然点
+                    vx: relX * scaleForce * 0.1, 
+                    vy: relY * scaleForce * 0.1,
+                    alpha: 1,
+                    decay: cfg.decaySpeed, // 文字消失得慢一点
+                    color: explosionColor, // 使用统一颜色
+                    isText: true, // 标记为文字粒子
+                    size: isMobile ? cfg.particleSizeMobile : cfg.particleSizeDesktop
+                });
+            });
+        }
+
+        function updateAndDrawFireworks() {
+            // [新增] 先画尾烟，让它在火花下面
+            updateAndDrawSmoke();
+
+            // 1. 更新上升的烟花
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                let fw = fireworks[i];
+                fw.y -= fw.speed;
+                
+                // [新增] 计算飞行抖动 (S型上升)
+                fw.wobblePhase += 0.15; // 抖动频率
+                const wobbleOffset = Math.sin(fw.wobblePhase) * CONFIG.fireworks.ascentWobble;
+                const currentX = fw.baseX + wobbleOffset;
+                fw.x = currentX;
+
+                // [新增] 生成尾烟
+                fw.tick++;
+                if (fw.tick % CONFIG.fireworks.smoke.interval === 0) {
+                    createSmoke(currentX, fw.y + 10); // 在火箭尾部生成
+                }
+
+                // 绘制拖尾
+                ctx.beginPath();
+                // 拖尾也稍微带点抖动感
+                ctx.moveTo(currentX, fw.y + fw.speed * 1.5);
+                ctx.lineTo(currentX, fw.y);
+                ctx.strokeStyle = fw.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 到达目标高度？爆炸！
+                if (fw.y <= fw.ty) {
+                    createExplosion(fw.baseX, fw.y, fw.color); // 在基准X处爆炸，防止偏离
+                    fireworks.splice(i, 1);
+                }
+            }
+
+            // 2. 更新爆炸的火花
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                let s = sparks[i];
+                s.x += s.vx;
+                s.y += s.vy;
+                
+                // 文字粒子受重力影响小一点，否则字会沉下去
+                if (s.isText) {
+                     s.vy += CONFIG.fireworks.gravity * 0.3; 
+                     s.vx *= 0.92; // 文字粒子阻力大，为了保持形状
+                     s.vy *= 0.92;
+                } else {
+                     s.vy += CONFIG.fireworks.gravity; 
+                     s.vx *= CONFIG.fireworks.friction; 
+                     s.vy *= CONFIG.fireworks.friction;
+                }
+                
+                s.alpha -= s.decay;
+
+                if (s.alpha <= 0) {
+                    sparks.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = s.alpha;
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
+                    // 文字粒子大小可控，普通粒子用原来的大小
+                    let pSize = s.isText ? s.size : (isMobile ? 1.5 : 2);
+                    ctx.arc(s.x, s.y, pSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1; // 恢复
+        }
+
+        // ===============================================
+        // ====== [新增功能] UI 交互逻辑 ======
+        // ===============================================
+
+        function toggleAutoFire() {
+            const btn = document.getElementById('btn-auto');
+            if (isAutoFiring) {
+                isAutoFiring = false;
+                btn.innerText = "自动放烟花: 关";
+                btn.classList.remove('active');
+                clearTimeout(autoFireTimer);
+            } else {
+                isAutoFiring = true;
+                btn.innerText = "自动放烟花: 开";
+                btn.classList.add('active');
+                scheduleNextFirework();
+            }
+        }
+
+        function scheduleNextFirework() {
+            if (!isAutoFiring) return;
+            const delay = CONFIG.ui.autoFire.minInterval + Math.random() * (CONFIG.ui.autoFire.maxInterval - CONFIG.ui.autoFire.minInterval);
+            autoFireTimer = setTimeout(() => {
+                if (!isAutoFiring) return;
+                
+                // [新增] 支持并发 (一次放好几个)
+                const burstCount = Math.floor(Math.random() * CONFIG.ui.autoFire.maxConcurrent) + 1;
+                
+                for(let k=0; k<burstCount; k++) {
+                    const targetX = width * 0.1 + Math.random() * width * 0.8;
+                    const targetY = height * 0.1 + Math.random() * height * 0.4; // 偏上方炸
+                    launchFirework(targetX, targetY);
+                }
+                
+                scheduleNextFirework();
+            }, delay);
+        }
+
+        function reloadPage() {
+            location.reload();
+        }
+
+        function goBlog() {
+            window.location.href = CONFIG.ui.blogUrl;
+        }
+
+        // ===============================================
+
         let isAnimating = false;
         function handleClick(e) {
+            // 排除点击到底部按钮的情况 (虽然 CSS pointer-events 处理了，但双重保险)
+            if (e.target.tagName === 'BUTTON') return;
             if (e.type === 'touchstart') e.preventDefault();
-            if (isFinalState || isAnimating) return;
+            
+            let clientX, clientY;
+            if (e.type === 'touchstart') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // [新增] 底部误触保护逻辑
+            // 如果点击位置距离底部太近，直接忽略（不放烟花，也不切换场景）
+            // 这样用户在点按钮手抖点偏时，不会误触发烟花
+            const safeZone = isMobile ? CONFIG.ui.safeZoneHeightMobile : CONFIG.ui.safeZoneHeightDesktop;
+            if (height - clientY < safeZone) {
+                return; 
+            }
+            
+            // [新增] 如果是最终状态，点击就是放烟花
+            if (isFinalState) {
+                // 第一次点击后，隐藏提示语
+                if (!hasTouchedInFinal) {
+                    hasTouchedInFinal = true;
+                    document.getElementById('touch-hint').style.opacity = 0;
+                }
+                launchFirework(clientX, clientY);
+                return; // 这里的 return 很重要，阻止触发后面的场景切换逻辑
+            }
+
+            if (isAnimating) return;
             isAnimating = true; step++;
             document.getElementById('hint').style.opacity = 0;
             if (step <= CONFIG.transitionTexts.length) {
@@ -308,21 +1124,33 @@
 
         function animate() {
             ctx.clearRect(0, 0, width, height);
+            
+            // [新增] 在清空画布后、绘制主要文字前，先画背景
+            // 这样背景永远在最后面，不会遮挡文字
+            updateAndDrawBackground();
+
+            // [新增] 绘制烟花（建议放在背景之上，文字之下，或者文字之上都可以）
+            // 这里放在文字层下面一点点，或者用 lighter 混合模式让它更亮
+            ctx.globalCompositeOperation = 'lighter';
+            updateAndDrawFireworks();
+            ctx.globalCompositeOperation = 'source-over'; 
 
             if (!isFinalState) {
-                particles.forEach(p => { p.update(); if(p.alpha > 0.01) p.draw(); });
+                particles.forEach(p => { 
+                    p.update(); 
+                    if(p.alpha > 0.01) p.draw(1); 
+                });
             } else {
-                // 1. 绘制上半部分的静态文字
-                staticTopParticles.forEach(p => { p.update(); p.draw(); });
+                staticTopParticles.forEach(p => { 
+                    p.update(); 
+                    p.draw(1); 
+                });
 
                 globalRotation -= CONFIG.rotationSpeed;
                 
-                // === 获取分离的配置参数 ===
                 const radius = isMobile ? width * CONFIG.carouselRadiusRatioMobile : width * CONFIG.carouselRadiusRatioDesktop;
-                // 分别获取手机或电脑的中心高度
                 const targetCenterRatio = isMobile ? CONFIG.centerYMobile : CONFIG.centerYDesktop;
                 const centerY = height * targetCenterRatio; 
-                
                 const fov = isMobile ? CONFIG.fovMobile : CONFIG.fovDesktop;
                 const tiltFactor = isMobile ? CONFIG.tiltFactorMobile : CONFIG.tiltFactorDesktop;
 
@@ -335,38 +1163,16 @@
 
                     group.parts.forEach(p => {
                         p.update(); 
-                        
-                        // 3D 坐标旋转
                         const x3d = p.relX * cosA + radius * sinA;
                         const z3d = -p.relX * sinA + radius * cosA;
-                        
-                        // 透视投影
                         const scale = fov / (fov + z3d);
                         const screenX = width / 2 + x3d * scale;
                         const screenY = centerY + (p.relY * scale) - (z3d * tiltFactor * scale);
                         
-                        // =========================================================
-                        // 核心升级：完美的 "正面不透明 / 背面全透明" 算法
-                        // =========================================================
-                        
-                        // 1. 计算归一化深度 (Normalized Depth)
-                        // z3d 的范围大约是 [-radius, radius]
-                        // 这里的逻辑是：离镜头越近(z3d为负)，opacity 越高；离镜头越远，opacity 越低
-                        // 我们把 [-radius, radius] 映射到 [1, 0]
-                        
-                        // 防止 z3d 稍微溢出导致计算错误，做个 clamp
-                        // 加上 1.1 的系数是为了让它在到达最背面之前就彻底消失，避免边缘闪烁
                         let progress = (radius * 1.1 - z3d) / (2 * radius * 1.1);
-                        
-                        // 限制在 0~1 之间
                         progress = Math.max(0, Math.min(1, progress));
-
-                        // 2. 使用指数曲线让过渡更生动 (Vivid Curve)
-                        // progress^1 是线性渐变（比较平）
-                        // progress^3 会让背面消失得很快，正面保持高亮（对比度高）
                         let alpha = Math.pow(progress, 3.5); 
 
-                        // 3. 只有当透明度大于微小阈值时才进入渲染队列
                         if (scale > 0.1 && alpha > 0.005) {
                              renderQueue.push({
                                  particle: p,
@@ -380,10 +1186,8 @@
                     });
                 });
 
-                // 深度排序 (Z-Sort)：确保远的被近的遮挡（虽然是粒子，但排序后混合效果更好）
                 renderQueue.sort((a, b) => b.z - a.z);
 
-                // 统一绘制
                 renderQueue.forEach(item => {
                     item.particle.draw(item.scale, item.x, item.y, item.alpha);
                 });
