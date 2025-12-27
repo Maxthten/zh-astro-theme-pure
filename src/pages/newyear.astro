@@ -1,0 +1,395 @@
+---
+// src/pages/newyear.astro
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 新年定制祝福 Ultimate Perfect 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        #ui-layer {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center; z-index: 10;
+            transition: opacity 0.5s;
+            width: 100%;
+            pointer-events: auto;
+        }
+        
+        input {
+            padding: 15px 20px; font-size: 18px; border-radius: 30px;
+            border: 2px solid #ff4d4d; background: rgba(0,0,0,0.8);
+            color: white; outline: none; text-align: center; width: 60%; max-width: 300px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+        }
+        
+        button {
+            padding: 12px 50px; font-size: 18px;
+            border-radius: 30px; border: none; background: linear-gradient(45deg, #ff4d4d, #ff8c00);
+            color: white; cursor: pointer; font-weight: bold;
+            box-shadow: 0 0 20px rgba(255, 77, 77, 0.5);
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+        
+        #hint {
+            position: absolute; bottom: 10%; width: 100%;
+            text-align: center; color: rgba(255,255,255,0.6); font-size: 14px;
+            pointer-events: none; opacity: 0; transition: opacity 1s;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <input type="text" id="nameInput" placeholder="请输入你的名字" maxlength="12">
+        <br>
+        <button onclick="startShow()">开启 2026</button>
+    </div>
+
+    <div id="hint">点击屏幕继续...</div>
+
+    <canvas id="canvas"></canvas>
+
+    <script is:inline>
+        // ================= 自定义调整区 =================
+        const CONFIG = {
+            transitionTexts: ["辞旧迎新", "万象更新"],
+            carouselTexts: ["财源广进", "吉星高照", "心想事成", "一帆风顺", "未来可期"],
+            
+            // --- 动画参数 ---
+            rotationSpeed: 0.0012, // 旋转速度
+            particleEase: 0.05,    // 粒子汇聚速度
+            
+            // --- 3D 圆环位置参数 (PC/手机 分离设置) ---
+            // 高度比例：0在顶部，1在底部，0.5在中间
+            // 建议：手机端因为屏幕窄，可以稍微放低一点；电脑端宽，可以居中一点
+            centerYMobile: 0.55,   
+            centerYDesktop: 0.5, 
+
+            // --- 3D 圆环半径参数 ---
+            carouselRadiusRatioMobile: 0.45,
+            carouselRadiusRatioDesktop: 0.2,
+
+            // --- 视角参数 ---
+            // 倾斜角度：0是平视，1是完全俯视
+            tiltFactorMobile: 0.5,
+            tiltFactorDesktop: 0.4,
+            // 视距：越小透视感越强（近大远小更夸张）
+            fovMobile: 1000,
+            fovDesktop: 1400,
+
+            // --- 粒子密度 (数值越小越清晰，但性能消耗越大) ---
+            // 建议：手机设为 2 或 3，电脑设为 2 或 1
+            mobileStep: 2, 
+            desktopStep: 2
+        };
+        // ===============================================
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d'); 
+        
+        let width, height, dpr;
+        let particles = []; 
+        let staticTopParticles = []; 
+        let carouselGroups = [];
+        let renderQueue = [];
+
+        let isMobile = false;
+        let baseParticleSize = 1.8; 
+        let step = 0;
+        let userName = "";
+        let isFinalState = false; 
+        let globalRotation = 0;
+
+        function resize() {
+            dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            ctx.scale(dpr, dpr);
+            isMobile = width < 768;
+            baseParticleSize = isMobile ? 1.6 : 2.0;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function getRandomColor(type) {
+            if (type === 'rainbow') return `hsl(${Math.random() * 360}, 90%, 65%)`;
+            if (type === 'gold') return `hsl(${35 + Math.random() * 15}, 100%, 60%)`;
+            if (type === 'red') return `hsl(${340 + Math.random() * 20}, 100%, 60%)`;
+            return `hsl(0, 0%, 100%)`;
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.tx = x;
+                this.ty = y;
+                this.relX = 0;
+                this.relY = 0;
+                this.color = getRandomColor('gold');
+                this.alpha = 1;
+            }
+
+            update() {
+                this.x += (this.tx - this.x) * CONFIG.particleEase;
+                this.y += (this.ty - this.y) * CONFIG.particleEase;
+            }
+
+            draw(scale = 1, forceX = null, forceY = null, opacity = 1) {
+                ctx.globalAlpha = this.alpha * opacity;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                const drawX = forceX !== null ? forceX : this.x;
+                const drawY = forceY !== null ? forceY : this.y;
+                let s = baseParticleSize * scale;
+                // 限制最大最小尺寸，防止近处粒子过大挡住视线
+                s = Math.max(0.5, Math.min(s, baseParticleSize * 4)); 
+                ctx.arc(drawX, drawY, s, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function sampleText(text, targetFontSize, colorType = 'gold') {
+            const tmpCanvas = document.createElement('canvas');
+            const tCtx = tmpCanvas.getContext('2d');
+            tCtx.font = `bold ${targetFontSize}px "Microsoft YaHei", sans-serif`;
+            const measure = tCtx.measureText(text);
+            let finalSize = targetFontSize;
+            const maxW = width * 0.9; 
+            if (measure.width > maxW) finalSize = targetFontSize * (maxW / measure.width);
+            tmpCanvas.width = width;
+            tmpCanvas.height = height;
+            tCtx.font = `bold ${finalSize}px "Microsoft YaHei", sans-serif`;
+            tCtx.fillStyle = "white";
+            tCtx.textAlign = "center";
+            tCtx.textBaseline = "middle";
+            tCtx.fillText(text, width / 2, height / 2);
+            const idata = tCtx.getImageData(0, 0, width, height);
+            const data = idata.data;
+            const points = [];
+            // 此处使用 separated step config
+            const currentStep = isMobile ? CONFIG.mobileStep : CONFIG.desktopStep;
+            
+            for (let y = 0; y < height; y += currentStep) {
+                for (let x = 0; x < width; x += currentStep) {
+                    if (data[(y * width + x) * 4 + 3] > 128) {
+                        points.push({ x: x, y: y, colorType: colorType });
+                    }
+                }
+            }
+            return points;
+        }
+
+        function createFinalStage() {
+            isFinalState = true;
+            particles = []; staticTopParticles = []; carouselGroups = [];
+
+            // --- 上半部分 2D 静态 ---
+            let topY_Center = height * 0.15; 
+            let midY_Center = height * 0.30; 
+            let botY_Center = height * 0.45; 
+            let titleSize = isMobile ? 55 : 70;
+            let nameSize = isMobile ? 90 : 130; 
+            let yearSize = isMobile ? 70 : 100;
+            const p1 = sampleText("祝", titleSize, 'red');
+            const p2 = sampleText(userName, nameSize, 'gold');
+            const p3 = sampleText("2026", yearSize, 'gold');
+
+            [...p1, ...p2, ...p3].forEach(p => {
+                let part = new Particle(width/2, height/2);
+                let targetY = 0;
+                if (p1.includes(p)) targetY = p.y - (height/2) + topY_Center;
+                else if (p2.includes(p)) targetY = p.y - (height/2) + midY_Center;
+                else targetY = p.y - (height/2) + botY_Center;
+                part.tx = p.x; part.ty = targetY;
+                let cType = 'gold'; if (p1.includes(p)) cType = 'red';
+                part.color = getRandomColor(cType);
+                part.x = width/2 + (Math.random()-0.5) * 300; 
+                part.y = height/2 + (Math.random()-0.5) * 300;
+                staticTopParticles.push(part);
+            });
+
+            // --- 底部 3D 倾斜圆环 ---
+            let carouselSize = isMobile ? 55 : 75; 
+            let list = CONFIG.carouselTexts;
+            let angleStep = (Math.PI * 2) / list.length;
+
+            list.forEach((text, index) => {
+                const points = sampleText(text, carouselSize, 'rainbow');
+                let group = {
+                    baseAngle: index * angleStep,
+                    parts: []
+                };
+                points.forEach(p => {
+                    let part = new Particle(width/2, height + 200);
+                    part.relX = -(p.x - width / 2); 
+                    part.relY = p.y - height / 2;
+                    part.x = (Math.random()-0.5) * width * 1.5; 
+                    part.y = height + 200;
+                    part.color = getRandomColor('rainbow');
+                    group.parts.push(part);
+                });
+                carouselGroups.push(group);
+            });
+        }
+
+        function updateMainText(text) {
+            let size = isMobile ? 85 : 160;
+            if(text.length > 4) size *= 0.7;
+            const points = sampleText(text, size);
+            if (particles.length < points.length) {
+                for(let i=0; i<points.length-particles.length; i++) particles.push(new Particle(width/2, height/2));
+            } else {
+                for(let i=points.length; i<particles.length; i++) particles[i].alpha = 0;
+            }
+            points.sort(() => Math.random()-0.5);
+            particles.forEach((p, i) => {
+                if (i < points.length) {
+                    p.tx = points[i].x; p.ty = points[i].y; p.alpha = 1; p.color = getRandomColor('gold');
+                }
+            });
+        }
+
+        function startShow() {
+            const input = document.getElementById('nameInput');
+            if (!input.value) return;
+            userName = input.value;
+            document.getElementById('ui-layer').style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('ui-layer').style.display = 'none';
+                document.getElementById('hint').style.opacity = 1;
+            }, 500);
+            updateMainText(userName);
+            window.addEventListener('mousedown', handleClick);
+            window.addEventListener('touchstart', handleClick, {passive: false});
+            animate();
+        }
+
+        function explodeAndSwitch(nextText) {
+            let targets = isFinalState ? staticTopParticles : particles;
+            targets.forEach(p => {
+                let dx = p.x - width/2; let dy = p.y - height/2;
+                p.tx += dx * 0.8; p.ty += dy * 0.8;
+            });
+            setTimeout(() => {
+                if (nextText === "FINAL") createFinalStage(); else updateMainText(nextText);
+            }, 300);
+        }
+
+        let isAnimating = false;
+        function handleClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            if (isFinalState || isAnimating) return;
+            isAnimating = true; step++;
+            document.getElementById('hint').style.opacity = 0;
+            if (step <= CONFIG.transitionTexts.length) {
+                explodeAndSwitch(CONFIG.transitionTexts[step-1]);
+                setTimeout(() => {
+                    isAnimating = false; document.getElementById('hint').style.opacity = 1;
+                }, 1800);
+            } else {
+                explodeAndSwitch("FINAL");
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            if (!isFinalState) {
+                particles.forEach(p => { p.update(); if(p.alpha > 0.01) p.draw(); });
+            } else {
+                // 1. 绘制上半部分的静态文字
+                staticTopParticles.forEach(p => { p.update(); p.draw(); });
+
+                globalRotation -= CONFIG.rotationSpeed;
+                
+                // === 获取分离的配置参数 ===
+                const radius = isMobile ? width * CONFIG.carouselRadiusRatioMobile : width * CONFIG.carouselRadiusRatioDesktop;
+                // 分别获取手机或电脑的中心高度
+                const targetCenterRatio = isMobile ? CONFIG.centerYMobile : CONFIG.centerYDesktop;
+                const centerY = height * targetCenterRatio; 
+                
+                const fov = isMobile ? CONFIG.fovMobile : CONFIG.fovDesktop;
+                const tiltFactor = isMobile ? CONFIG.tiltFactorMobile : CONFIG.tiltFactorDesktop;
+
+                renderQueue = [];
+
+                carouselGroups.forEach(group => {
+                    const angle = group.baseAngle + globalRotation;
+                    const cosA = Math.cos(angle);
+                    const sinA = Math.sin(angle);
+
+                    group.parts.forEach(p => {
+                        p.update(); 
+                        
+                        // 3D 坐标旋转
+                        const x3d = p.relX * cosA + radius * sinA;
+                        const z3d = -p.relX * sinA + radius * cosA;
+                        
+                        // 透视投影
+                        const scale = fov / (fov + z3d);
+                        const screenX = width / 2 + x3d * scale;
+                        const screenY = centerY + (p.relY * scale) - (z3d * tiltFactor * scale);
+                        
+                        // =========================================================
+                        // 核心升级：完美的 "正面不透明 / 背面全透明" 算法
+                        // =========================================================
+                        
+                        // 1. 计算归一化深度 (Normalized Depth)
+                        // z3d 的范围大约是 [-radius, radius]
+                        // 这里的逻辑是：离镜头越近(z3d为负)，opacity 越高；离镜头越远，opacity 越低
+                        // 我们把 [-radius, radius] 映射到 [1, 0]
+                        
+                        // 防止 z3d 稍微溢出导致计算错误，做个 clamp
+                        // 加上 1.1 的系数是为了让它在到达最背面之前就彻底消失，避免边缘闪烁
+                        let progress = (radius * 1.1 - z3d) / (2 * radius * 1.1);
+                        
+                        // 限制在 0~1 之间
+                        progress = Math.max(0, Math.min(1, progress));
+
+                        // 2. 使用指数曲线让过渡更生动 (Vivid Curve)
+                        // progress^1 是线性渐变（比较平）
+                        // progress^3 会让背面消失得很快，正面保持高亮（对比度高）
+                        let alpha = Math.pow(progress, 3.5); 
+
+                        // 3. 只有当透明度大于微小阈值时才进入渲染队列
+                        if (scale > 0.1 && alpha > 0.005) {
+                             renderQueue.push({
+                                 particle: p,
+                                 scale: scale,
+                                 x: screenX,
+                                 y: screenY,
+                                 alpha: alpha,
+                                 z: z3d
+                             });
+                        }
+                    });
+                });
+
+                // 深度排序 (Z-Sort)：确保远的被近的遮挡（虽然是粒子，但排序后混合效果更好）
+                renderQueue.sort((a, b) => b.z - a.z);
+
+                // 统一绘制
+                renderQueue.forEach(item => {
+                    item.particle.draw(item.scale, item.x, item.y, item.alpha);
+                });
+            }
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
