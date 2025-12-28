@@ -395,6 +395,39 @@
                     // [NEW] 每次并发最多放几个? (1~3)
                     maxConcurrent: 3
                 }
+            },
+
+            // ===============================================
+            // ====== [新增功能] 音效系统配置 (Sound System) ======
+            // ===============================================
+            sound: {
+                enabled: true,       // 音效总开关
+                volume: 0.5,         // 全局音量 (0 ~ 1)
+                
+                // 资源路径定义 (请确保 public/audio 目录下有这些文件)
+                files: {
+                    // 发射音效 (升空)
+                    lift: [
+                        '/audio/lift1.mp3', 
+                        '/audio/lift2.mp3', 
+                        '/audio/lift3.mp3'
+                    ],
+                    // 爆炸音效 (大)
+                    burst: [
+                        '/audio/burst1.mp3', 
+                        '/audio/burst2.mp3'
+                    ],
+                    // 小炸裂 (用于文字烟花或小烟花)
+                    burstSmall: [
+                        '/audio/burst-sm-1.mp3', 
+                        '/audio/burst-sm-2.mp3'
+                    ],
+                    // 噼啪声 (预留)
+                    crackle: [
+                        '/audio/crackle1.mp3',
+                        '/audio/crackle-sm-1.mp3'
+                    ]
+                }
             }
         };
         // ===============================================
@@ -435,6 +468,116 @@
         
         // 提示语状态
         let hasTouchedInFinal = false;
+
+        // ===============================================
+        // ====== [核心新增] 音效管理器 SoundManager ======
+        // ===============================================
+        const soundManager = {
+            ctx: null,
+            buffers: {}, // 缓存解码后的音频数据
+            sources: CONFIG.sound.files,
+            lastSmallBurstTime: 0, // 用于节流
+
+            // 初始化：尝试创建 AudioContext (需要用户交互后才能 resume)
+            init() {
+                if (!CONFIG.sound.enabled) return;
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                    this.preload();
+                } catch (e) {
+                    console.warn("Web Audio API not supported");
+                }
+            },
+
+            // 预加载所有音频资源
+            preload() {
+                if (!this.ctx) return;
+                // 遍历所有类别 (lift, burst, etc.)
+                for (const [key, urls] of Object.entries(this.sources)) {
+                    this.buffers[key] = [];
+                    urls.forEach(url => {
+                        fetch(url)
+                            .then(response => response.arrayBuffer())
+                            .then(arrayBuffer => this.ctx.decodeAudioData(arrayBuffer))
+                            .then(decodedBuffer => {
+                                this.buffers[key].push(decodedBuffer);
+                            })
+                            .catch(e => console.warn("Audio load failed:", url));
+                    });
+                }
+            },
+
+            // 交互解锁：浏览器通常要求用户点击后才能播放声音
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+
+            // 播放音效核心逻辑
+            // type: 'lift', 'burst', 'burstSmall', 'crackle'
+            // scale: 0.0 ~ 1.0 (影响音调和音量，烟花越小声音越尖越小)
+            playSound(type, scale = 1) {
+                if (!CONFIG.sound.enabled || !this.ctx) return;
+
+                // 检查资源是否加载完毕
+                const bufferList = this.buffers[type];
+                if (!bufferList || bufferList.length === 0) return;
+
+                // 防爆音节流 (仅针对小炸裂声)
+                // 防止文字烟花同时产生太多声音导致破音或卡顿
+                if (type === 'burstSmall') {
+                    const now = Date.now();
+                    if (now - this.lastSmallBurstTime < 50) return; // 50ms 冷却
+                    this.lastSmallBurstTime = now;
+                }
+
+                // 随机选择一个样本
+                const buffer = bufferList[Math.floor(Math.random() * bufferList.length)];
+                
+                // 创建音源
+                const source = this.ctx.createBufferSource();
+                source.buffer = buffer;
+
+                // 创建音量控制
+                const gainNode = this.ctx.createGain();
+
+                // 物理模拟计算
+                // scale 越小(小烟花) -> playbackRate 越大(声音尖), volume 越小
+                // scale 越大(大烟花) -> playbackRate 越小(声音沉), volume 越大
+                // 假设 scale 输入范围约为 0.5 ~ 1.5 之间
+                
+                // 播放速度：基准 1.0。小烟花加速，大烟花减速。
+                // 算法：1.2 - scale * 0.2 (scale=1时是1.0，scale=0.5时是1.1)
+                // 这里做一个更明显的映射
+                let rate = 1.0;
+                let volume = CONFIG.sound.volume;
+
+                if (type === 'burst' || type === 'burstSmall') {
+                    // 速度范围 0.8 (低沉) ~ 1.5 (尖锐)
+                    rate = 1.5 - (scale * 0.5); 
+                    // 音量范围 
+                    volume = CONFIG.sound.volume * (0.3 + scale * 0.6);
+                }
+
+                // 限制边界
+                rate = Math.max(0.5, Math.min(rate, 2.0));
+                volume = Math.max(0.05, Math.min(volume, 1.5));
+
+                source.playbackRate.value = rate;
+                gainNode.gain.value = volume;
+
+                // 连接节点：Source -> Gain -> Destination
+                source.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+
+                source.start(0);
+            }
+        };
+
+        // 立即初始化音频系统
+        soundManager.init();
 
         // [新增] 初始化背景粒子 (支持多种形状和旋转)
         function initBackground() {
@@ -597,9 +740,9 @@
                 } else if (this.isTwinkler && CONFIG.visuals.twinkleAdditive) {
                     // 仅在波峰高亮时启用叠加
                     if (currentAlpha > 0.3) {
-                         ctx.globalCompositeOperation = 'lighter';
+                          ctx.globalCompositeOperation = 'lighter';
                     } else {
-                         ctx.globalCompositeOperation = 'source-over';
+                          ctx.globalCompositeOperation = 'source-over';
                     }
                 } else {
                     ctx.globalCompositeOperation = 'source-over';
@@ -664,6 +807,59 @@
                 }
             }
             return points;
+        }
+
+        // [移植修改] 新增：高效的文字点阵获取函数 (源自 MyMath.literalLattice)
+        // 专门用于烟花文字，性能比 sampleText 更好，且只生成文字区域的点
+        function getTextLattice(text, fontSize) {
+            // 创建一个临时的离屏 canvas
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const fontFamily = '"Microsoft YaHei", sans-serif';
+
+            // 1. 先设置字体来测量宽度
+            ctx.font = `bold ${fontSize}px ${fontFamily}`;
+            const measure = ctx.measureText(text);
+            const width = Math.ceil(measure.width);
+            const height = fontSize + 20; // 给一点高度冗余防止被截断
+
+            // 2. 调整 canvas 大小为文字实际大小
+            canvas.width = width;
+            canvas.height = height;
+
+            // 3. 重新设置字体 (调整大小后需要重设)
+            ctx.font = `bold ${fontSize}px ${fontFamily}`;
+            ctx.fillStyle = "#ffffff";
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "left"; // 左对齐方便扫描
+
+            // 4. 绘制文字
+            ctx.fillText(text, 0, height / 2);
+
+            // 5. 获取像素数据
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const points = [];
+
+            // 6. 采样密度 (根据设备调整，手机稀疏一点)
+            // 对应 user config 中的 density 概念，但这里是局部采样
+            const density = isMobile ? 2 : 3;
+
+            for (let y = 0; y < height; y += density) {
+                for (let x = 0; x < width; x += density) {
+                    const i = (y * width + x) * 4;
+                    // alpha > 128 认为是文字部分
+                    if (data[i + 3] > 128) {
+                        points.push({ x: x, y: y });
+                    }
+                }
+            }
+
+            return {
+                width: width,
+                height: height,
+                points: points
+            };
         }
 
         function createFinalStage() {
@@ -765,6 +961,10 @@
         function startShow() {
             const input = document.getElementById('nameInput');
             if (!input.value) return;
+            
+            // [新增] 用户交互触发音频解锁 (iOS/Chrome 策略要求)
+            soundManager.resume();
+
             userName = input.value;
             document.getElementById('ui-layer').style.opacity = 0;
             setTimeout(() => {
@@ -834,6 +1034,9 @@
         }
 
         function launchFirework(targetX, targetY) {
+            // [新增] 触发发射音效 (lift)
+            soundManager.playSound('lift', 1);
+
             // 发射一个“火箭”
             const speed = isMobile ? CONFIG.fireworks.launchSpeedMobile : CONFIG.fireworks.launchSpeedDesktop;
             fireworks.push({
@@ -862,6 +1065,11 @@
             const count = isMobile ? CONFIG.fireworks.explosionCountMobile : CONFIG.fireworks.explosionCountDesktop;
             const scaleMul = isMobile ? CONFIG.fireworks.patterns.scaleMobile : CONFIG.fireworks.patterns.scaleDesktop;
             
+            // [新增] 触发普通爆炸音效 (burst)
+            // 根据 scaleMul 调整音调。scaleMul 越大，scale 越大，声音越低沉。
+            // 这里将 scaleMul 归一化到 0.8~1.2 左右传给 playSound
+            soundManager.playSound('burst', isMobile ? scaleMul / 1.5 : scaleMul / 2.0);
+
             // 决定当前这个烟花的形状
             let patternType = 'sphere'; // 默认圆形
             if (CONFIG.fireworks.patterns.enabled) {
@@ -905,17 +1113,21 @@
             }
         }
 
-        // [新增] 文字爆炸逻辑 - 升级版：由中心向外炸开
+        // [修改] 文字爆炸逻辑 - 升级版：由中心向外炸开 (使用移植的 getTextLattice 算法)
         function createWordExplosion(cx, cy) {
+            // [新增] 触发文字烟花音效 (burstSmall)
+            // 文字烟花通常密集，使用节流的 burstSmall
+            soundManager.playSound('burstSmall', 1.0);
+
             const cfg = CONFIG.fireworks.textFireworks;
             const word = cfg.words[Math.floor(Math.random() * cfg.words.length)];
             
-            // 临时增大字体采样，保证文字清晰
+            // 字体大小 (可以稍微大一点，因为离屏 Canvas 不受屏幕限制)
             const fontSize = isMobile ? 60 : 100; 
             
-            // 使用现有的 sampleText 采样，步长可以稍微大一点（稀疏一点）
-            // 这里我们只需要相对坐标
-            const points = sampleText(word, fontSize, 'gold', isMobile ? 2 : 3);
+            // [移植] 使用新函数获取点阵，替换原来的 sampleText 调用
+            // 这里的 lattice 包含 {width, height, points: [{x,y}]}
+            const lattice = getTextLattice(word, fontSize);
             
             // [NEW] 确定文字颜色 - 保证单字纯色
             let explosionColor = 'hsl(45, 100%, 60%)'; // 默认金
@@ -932,21 +1144,23 @@
             // [NEW] 获取炸开力度比例
             const scaleForce = isMobile ? cfg.explosionScaleMobile : cfg.explosionScaleDesktop;
 
-            points.forEach(p => {
-                // p.x, p.y 是基于 canvas 中心的，需要转换成相对于爆炸中心 cx, cy 的偏移向量
-                const relX = p.x - width / 2;
-                const relY = p.y - height / 2;
-                
-                // ★ 关键修改：粒子出生在中心 cx, cy
-                // 然后速度方向设为 relX, relY，这样它们就会“炸”到文字形状的位置去
+            // 计算中心偏移量，让文字在 cx, cy 处居中炸开
+            const centerX = lattice.width / 2;
+            const centerY = lattice.height / 2;
+
+            lattice.points.forEach(p => {
+                // p.x, p.y 是在小 canvas 里的坐标
+                // 需要计算相对于文字中心的偏移
+                const relX = p.x - centerX;
+                const relY = p.y - centerY;
                 
                 sparks.push({
                     x: cx, 
                     y: cy,
                     // 速度 = 距离 * 系数。这样远的粒子飞得快，近的飞得慢，最终同时到达形状
-                    // 0.1 是个经验系数，让它炸得自然点
-                    vx: relX * scaleForce * 0.1, 
-                    vy: relY * scaleForce * 0.1,
+                    // 0.08 是个经验系数，让它炸得自然点
+                    vx: relX * scaleForce * 0.08, 
+                    vy: relY * scaleForce * 0.08,
                     alpha: 1,
                     decay: cfg.decaySpeed, // 文字消失得慢一点
                     color: explosionColor, // 使用统一颜色
@@ -1001,13 +1215,13 @@
                 
                 // 文字粒子受重力影响小一点，否则字会沉下去
                 if (s.isText) {
-                     s.vy += CONFIG.fireworks.gravity * 0.3; 
-                     s.vx *= 0.92; // 文字粒子阻力大，为了保持形状
-                     s.vy *= 0.92;
+                      s.vy += CONFIG.fireworks.gravity * 0.3; 
+                      s.vx *= 0.92; // 文字粒子阻力大，为了保持形状
+                      s.vy *= 0.92;
                 } else {
-                     s.vy += CONFIG.fireworks.gravity; 
-                     s.vx *= CONFIG.fireworks.friction; 
-                     s.vy *= CONFIG.fireworks.friction;
+                      s.vy += CONFIG.fireworks.gravity; 
+                      s.vx *= CONFIG.fireworks.friction; 
+                      s.vy *= CONFIG.fireworks.friction;
                 }
                 
                 s.alpha -= s.decay;
@@ -1077,6 +1291,9 @@
 
         let isAnimating = false;
         function handleClick(e) {
+            // [新增] 交互时尝试解锁 AudioContext
+            soundManager.resume();
+
             // 排除点击到底部按钮的情况 (虽然 CSS pointer-events 处理了，但双重保险)
             if (e.target.tagName === 'BUTTON') return;
             if (e.type === 'touchstart') e.preventDefault();
