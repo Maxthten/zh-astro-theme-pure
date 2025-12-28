@@ -12,6 +12,33 @@
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
+        /* ============================================================ */
+        /* ====== [新增] 开场动画层 (Intro Layer) ====== */
+        /* ============================================================ */
+        #intro-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            z-index: 100; /* 最高层级 */
+            display: flex; justify-content: center; align-items: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 24px; letter-spacing: 4px; font-weight: 300;
+            pointer-events: none; /* 动画期间不让点 */
+            opacity: 1;
+            transition: opacity 1s; /* 默认淡出速度，JS中会动态控制 */
+        }
+        
+        /* 呼吸灯动画效果 */
+        .breathing {
+            animation: breathe 3s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0% { opacity: 0.3; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+            100% { opacity: 0.3; transform: scale(0.95); }
+        }
+
+        /* ============================================================ */
+        
         #ui-layer {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -19,14 +46,23 @@
             transition: opacity 0.5s;
             width: 100%;
             pointer-events: auto;
+            /* [修改] 初始透明度设为0，等待开场动画结束后显示 */
+            opacity: 0; 
+            display: none; /* 初始隐藏 */
         }
         
+        /* [修改] 输入框样式：由原本的红色改为浅灰色低调风格 */
         input {
             padding: 15px 20px; font-size: 18px; border-radius: 30px;
-            border: 2px solid #ff4d4d; background: rgba(0,0,0,0.8);
+            /* 原来的红色边框被注释掉，改为浅灰 */
+            /* border: 2px solid #ff4d4d; */
+            border: 2px solid rgba(255, 255, 255, 0.3); 
+            background: rgba(0,0,0,0.8);
             color: white; outline: none; text-align: center; width: 60%; max-width: 300px;
             margin-bottom: 20px;
-            box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+            /* 原来的红色阴影改为浅白阴影 */
+            /* box-shadow: 0 0 15px rgba(255, 77, 77, 0.3); */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
         }
         
         button {
@@ -37,6 +73,17 @@
             transition: transform 0.1s;
         }
         button:active { transform: scale(0.95); }
+
+        /* [新增] 免责声明样式 */
+        #disclaimer {
+            margin-top: 25px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.3);
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.5;
+        }
         
         #hint {
             position: absolute; bottom: 10%; width: 100%;
@@ -61,28 +108,19 @@
             text-shadow: 0 0 5px rgba(0,0,0,0.8);
         }
 
-        /* [修改] 底部控制栏样式 - 改为 Flex 布局以支持左右分开 */
+        /* [修改] 控制栏容器 - 不再负责具体布局，只作为一个全屏覆盖层 */
         #controls-layer {
             position: absolute;
-            bottom: 3%; /* 默认位置，可在 JS CONFIG 中微调 */
-            left: 0;
-            width: 100%;
+            top: 0; left: 0; width: 100%; height: 100%; /* 全屏覆盖 */
             z-index: 20;
-            opacity: 0; /* 初始隐藏，进入最终页面后显示 */
+            opacity: 1; 
             transition: opacity 1.5s;
             pointer-events: none; /* 自身不挡点击，子元素按钮挡点击 */
-            padding-top: 20px; 
-            
-            /* [NEW] 使用 Flexbox 实现按钮分离 */
-            display: flex;
-            justify-content: center; /* 这里的具体间距由 JS 动态控制 gap */
-            align-items: center;
         }
 
         .control-btn {
             pointer-events: auto;
             display: inline-block;
-            /* margin: 0 5px;  <-- 删除原本的 margin，改用 gap 控制 */
             padding: 8px 16px;
             font-size: 14px;
             color: rgba(255, 255, 255, 0.8);
@@ -97,6 +135,33 @@
             background-image: none; /* 移除原来的渐变 */
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            white-space: nowrap; /* 防止文字换行影响布局 */
+        }
+        
+        /* [新增] 初始隐藏的按钮 (自动烟花 和 返回博客)，等到 Final 阶段才显示 */
+        .initially-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+            transition: all 0.5s ease-out; /* 添加平滑过渡 */
+        }
+        
+        /* [修改] 左右按钮的定位样式 - 这里仅设置 position，具体 top/bottom/left/right 由 JS 动态控制 */
+        #btn-auto {
+            position: absolute;
+            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
+        }
+
+        #btn-blog {
+            position: absolute;
+            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
+        }
+
+        /* 显示状态类 */
+        .reveal-btn {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transform: scale(1) !important;
         }
 
         .control-btn:hover {
@@ -114,14 +179,159 @@
             border-color: #ff4d4d;
             color: #fff;
         }
+
+        /* ============================================================ */
+        /* ====== [修改] 音量控制样式 (整合到底部中间) ====== */
+        /* ============================================================ */
+        
+        /* 音量按钮容器 (用于定位弹出面板) */
+        /* [修改] 这里设置为绝对定位，具体位置由 JS 控制 */
+        .volume-container {
+            position: absolute;
+            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1; 
+            z-index: 25;
+        }
+
+        /* 触发按钮样式 (保持和其他按钮一致) */
+        #volume-trigger-btn {
+            width: 40px; 
+            height: 36px; /* 和其他按钮差不多高 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            padding: 0; /* 图标居中 */
+        }
+
+        /* [修改] 向上弹出的面板 - 极简风格 */
+        #volume-panel-vertical {
+            position: absolute;
+            bottom: 50px; /* 距离底部按钮的距离 */
+            left: 50%;
+            /* 初始状态：下移且缩小 */
+            transform: translateX(-50%) translateY(20px) scale(0.9); 
+            
+            /* [修改] 宽度加宽，以容纳左右两个滑块 */
+            width: 140px; 
+            height: 140px; /* 高度适中 */
+            
+            /* [UI 修改] 去掉大色块背景，改为极简 */
+            background: transparent; 
+            /* 如果需要一点点背景保证文字可见，可以用极淡的渐变，这里先设为全透明突出极简 */
+            
+            display: flex;
+            flex-direction: row; 
+            align-items: flex-end; /* 底部对齐 */
+            justify-content: center; 
+            gap: 20px; /* 两个音量条之间的间距 */
+            padding-bottom: 10px;
+            
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性弹出动画 */
+            z-index: 100;
+        }
+
+        #volume-panel-vertical.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        /* 滑块包装器 */
+        .vol-slider-wrap {
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            width: 30px;
+        }
+
+        .vol-icon-small {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 10px; /* 图标在滑块下方 */
+            text-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
+        /* [UI 修改] 极简细线条风格滑块 */
+        
+        /* 容器需要旋转，因为 range 默认是横向的 */
+        .range-holder {
+            width: 30px;
+            height: 100px; /* 轨道视觉长度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        input[type=range].vertical-range-transform {
+            -webkit-appearance: none; /* 清除默认样式 */
+            width: 100px; /* 实际宽度 (旋转后变成高度) */
+            height: 20px; /* 触控区域高度，不影响视觉线条粗细 */
+            background: transparent;
+            transform: rotate(-90deg); /* 旋转90度变成竖向 */
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* 轨道样式 (Chrome/Safari/Edge) */
+        input[type=range].vertical-range-transform::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px; /* 线条粗细：细线 */
+            background: rgba(255, 255, 255, 0.3); /* 半透明白线 */
+            border-radius: 1px;
+            border: none;
+        }
+
+        /* 滑块圆点样式 (Chrome/Safari/Edge) */
+        input[type=range].vertical-range-transform::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #ffffff; /* 纯白圆点 */
+            margin-top: -6px; /* (轨道高度2px / 2) - (圆点高度14px / 2) = 1 - 7 = -6 */
+            box-shadow: 0 0 5px rgba(0,0,0,0.3); /* 轻微阴影 */
+            border: none;
+        }
+
+        /* Firefox 兼容 */
+        input[type=range].vertical-range-transform::-moz-range-track {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 1px;
+            border: none;
+        }
+        input[type=range].vertical-range-transform::-moz-range-thumb {
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: none;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+
     </style>
 </head>
 <body>
+
+    <div id="intro-layer">
+        <div id="intro-text" class="breathing"></div>
+    </div>
 
     <div id="ui-layer">
         <input type="text" id="nameInput" placeholder="请输入你的名字" maxlength="12">
         <br>
         <button onclick="startShow()">开启 2026</button>
+        <div id="disclaimer"></div>
     </div>
 
     <div id="hint">点击屏幕继续...</div>
@@ -129,8 +339,27 @@
     <div id="touch-hint">戳戳屏幕有惊喜</div>
 
     <div id="controls-layer">
-        <button class="control-btn" id="btn-auto" onclick="toggleAutoFire()">自动放烟花: 关</button>
-        <button class="control-btn" onclick="goBlog()">返回博客</button>
+        <button class="control-btn initially-hidden" id="btn-auto" onclick="toggleAutoFire()">自动放烟花: 关</button>
+        
+        <div class="volume-container">
+            <div id="volume-panel-vertical">
+                <div class="vol-slider-wrap">
+                    <div class="range-holder">
+                        <input type="range" class="vertical-range-transform" min="0" max="1" step="0.01" value="0.5" id="sfx-slider" oninput="updateSfxVolume(this.value)">
+                    </div>
+                    <span class="vol-icon-small">💥</span>
+                </div>
+                <div class="vol-slider-wrap">
+                    <div class="range-holder">
+                        <input type="range" class="vertical-range-transform" min="0" max="1" step="0.01" value="0.5" id="bgm-slider" oninput="updateBgmVolume(this.value)">
+                    </div>
+                    <span class="vol-icon-small">🎵</span>
+                </div>
+            </div>
+            <button class="control-btn" id="volume-trigger-btn" onclick="toggleVolumePanel()">🔊</button>
+        </div>
+
+        <button class="control-btn initially-hidden" id="btn-blog" onclick="goBlog()">访问我的博客</button>
     </div>
 
     <canvas id="canvas"></canvas>
@@ -138,10 +367,63 @@
     <script is:inline>
         // ================= 自定义调整区 =================
         const CONFIG = {
+            // ============================================
+            // ====== [新增] 开场动画配置 (INTRO) ======
+            // ============================================
+            intro: {
+                // 是否启用开场动画
+                enabled: true, 
+
+                // [配置点 4] true = 无论多少次访问都显示; false = 第一次访问显示，之后刷新不显示
+                alwaysShow:true, 
+
+                // 开场显示的文字序列 (可自定义)
+                texts: ["建议开启声音<br>获得最佳体验", "Maxton 作品"],
+                
+                // 每个文字显示的停留时间 (毫秒)
+                duration: 2000, 
+                
+                // 淡入淡出的过渡时间 (毫秒)
+                fadeSpeed: 1000
+            },
+
+            // ============================================
+            // ====== [1. 文字内容配置 (TEXT CONTENT)] ======
+            // ============================================
+            
+            // [原有] 如果下面的 textLogic.randomize 为 false，则使用这些固定的词
             transitionTexts: ["前程似锦", "学业有成","平安喜乐"],
             carouselTexts: ["财源广进", "吉星高照", "心想事成", "一帆风顺", "未来可期"],
-            
-            // --- 1. 字体大小控制 (NEW! 可以在这里调整字的大小) ---
+
+            // [新增功能] 词汇库逻辑控制
+            textLogic: {
+                // 是否开启随机抽取？ 
+                // true = 每次刷新网页都从 pool 里随机选词覆盖上面的数组
+                // false = 使用上面固定的 transitionTexts 和 carouselTexts
+                randomize: true, 
+
+                // 随机抽取数量配置
+                transitionCount: 3, // 上面随机选3个
+                carouselCount: 5,   // 下面随机选5个
+
+                // 大词库 (Pool) - 你可以无限往这里加词
+                pool: [
+                    "前程似锦", "学业有成", "平安喜乐", "财源广进", "吉星高照", 
+                    "心想事成", "一帆风顺", "未来可期", "万事如意", "身体健康",
+                    "步步高升", "阖家幸福", "大展宏图", "金榜题名", "好运连连",
+                    "笑口常开", "日进斗金", "飞黄腾达", "诸事顺遂", "福星高照",
+                    "岁岁平安", "年年有余", "事业有成", "梦想成真"
+                ]
+            },
+
+            textColors: {
+                initialMode: 'gold', // 'gold', 'red', 'rainbow', 'white'
+                randomize: false      // 是否随机变色
+            },
+
+            // ============================================
+            // ====== [2. 字体与排版 (FONTS & LAYOUT)] ======
+            // ============================================
             fontSizes: {
                 // [开场文字] (输入名字后的那个大字)
                 introMobile: 85,    // 手机端大小 (太大可能会超出屏幕)
@@ -162,13 +444,28 @@
                 carouselDesktop: 100
             },
 
-            // --- 2. 粒子密度控制 (核心升级：支持小数了！) ---
+            // --- 3D 布局参数 ---
+            // [中心高度] 0=顶部, 0.5=屏幕正中间, 1=底部
+            centerYMobile: 0.53,    
+            centerYDesktop: 0.5,    
+            
+            // [圆环半径] 屏幕宽度的倍数。太大字会出屏幕，太小字挤在一起。
+            carouselRadiusRatioMobile: 0.45, 
+            carouselRadiusRatioDesktop: 0.2, 
+
+            // [俯视角度] 0=平视(一条线), 1=完全俯视(正圆)
+            tiltFactorMobile: 0.5,    
+            tiltFactorDesktop: 0.4,   
+            
+            // [透视感] 数值越小，近大远小的效果越夸张。
+            fovMobile: 1000,    
+            fovDesktop: 1400,
+
+            // ============================================
+            // ====== [3. 粒子系统设置 (PARTICLES)] ======
+            // ============================================
             // 数值代表“每隔多少个像素取一个点”。
-            // 1 = 最密 (100% 还原)
-            // 1.5 = 适中 (推荐手机端使用这个！)
-            // 2 = 稀疏 (只有 1 的 25% 粒子量)
-            // 数值越大 -> 粒子越少，画面越空，但性能越好。
-            // 数值越小 -> 粒子越多，画面越细腻，但可能卡顿。
+            // 1 = 最密 (100% 还原), 1.5 = 适中, 2 = 稀疏
             density: {
                 // 开场阶段
                 introMobile: 1.4,    // ★ 建议设置 1.3 ~ 1.6 之间
@@ -179,104 +476,74 @@
                 finalDesktop: 3
             },
 
-            // --- 3. 视觉与发光控制 ---
+            // --- 视觉与发光控制 ---
             visuals: {
-                // [全局发光] (Global Lighter)
-                // true: 开启暴力叠加模式，所有粒子都发光。缺点：重叠多了会变成纯白一片(过曝)。
-                // false: 建议关闭，保持颜色纯正。
+                // [全局发光] true: 开启暴力叠加模式，所有粒子都发光。
                 globalAdditive: false, 
 
-                // [呼吸高亮] (Twinkle Lighter) ★ 推荐开启
-                // true: 只有“正在闪烁”的粒子才开启高亮叠加。
-                // 效果：普通粒子是磨砂质感，闪烁粒子是霓虹光感，层次丰富，不会过曝。
+                // [呼吸高亮] true: 只有“正在闪烁”的粒子才开启高亮叠加。
                 twinkleAdditive: true,
 
-                // [基础亮度]
-                // 范围 0.1(暗) ~ 1.0(亮)。
-                // 如果觉得画面太刺眼，改小这个；如果觉得太暗淡，改大这个。
+                // [基础亮度] 范围 0.1(暗) ~ 1.0(亮)。
                 alphaFactor: 0.8
             },
 
-            // --- 4. 粒子呼吸/闪烁参数 ---
+            // --- 粒子呼吸/闪烁参数 ---
             twinkle: {
                 enabled: true,       // 总开关
-                probability: 0.9,    // 闪烁密度 (0.7 = 70% 的粒子会参与闪烁，30% 是死粒子)
-                minOpacity: 0.1,     // [明暗对比度] 闪烁时最暗能到多少 (越低对比度越强，星星感越强)
+                probability: 0.9,    // 闪烁密度 (0.7 = 70% 的粒子会参与闪烁)
+                minOpacity: 0.1,     // [明暗对比度] 闪烁时最暗能到多少
                 maxOpacity: 1.0,     // 闪烁时最亮能到多少
-                speedMin: 0.03,      // 闪烁速度下限 (数值越小闪得越慢)
+                speedMin: 0.03,      // 闪烁速度下限
                 speedMax: 0.06,      // 闪烁速度上限
                 
-                // [锐化系数] (Sharpness)
-                // 1 = 像呼吸灯一样平滑 (容易显得糊)
-                // 3 = 像星星一样尖锐 (暗的时间长，亮的一瞬间很亮)
-                // ★ 建议 2.5 ~ 3.0，解决“泛糊”的神器
+                // [锐化系数] 1 = 平滑, 3 = 尖锐 (像星星)
                 sharpness: 2.5  
             },
 
-            textColors: {
-                initialMode: 'gold', // 'gold', 'red', 'rainbow', 'white'
-                randomize: false     // 是否随机变色
-            },
-
-            // --- 5. 动画物理参数 ---
+            // ============================================
+            // ====== [4. 动画与物理 (ANIMATION)] ======
+            // ============================================
             rotationSpeed: 0.0012, // 底部圆环旋转速度
             particleEase: 0.05,    // 粒子飞行的刹车力度 (0.01=超慢, 0.1=超快)
 
-            // --- 6. 3D 布局参数 ---
-            // [中心高度] 0=顶部, 0.5=屏幕正中间, 1=底部
-            centerYMobile: 0.53,   
-            centerYDesktop: 0.5,   
-            
-            // [圆环半径] 屏幕宽度的倍数。太大字会出屏幕，太小字挤在一起。
-            carouselRadiusRatioMobile: 0.45, 
-            carouselRadiusRatioDesktop: 0.2, 
-
-            // [俯视角度] 0=平视(一条线), 1=完全俯视(正圆)
-            tiltFactorMobile: 0.5,   
-            tiltFactorDesktop: 0.4,  
-            
-            // [透视感] 数值越小，近大远小的效果越夸张。
-            fovMobile: 1000,   
-            fovDesktop: 1400,
-
-            // ===============================================
-            // ====== [新增功能] 漂浮背景配置区 ======
-            // ===============================================
+            // ============================================
+            // ====== [5. 背景与氛围 (BACKGROUND)] ======
+            // ============================================
             background: {
                 enabled: true,       // 是否开启背景漂浮物
                 
-                // [升级] 样式选择: 'mix'(混合推荐), 'circle'(圆), 'cross'(十字), 'ring'(空心圈)
+                // 样式选择: 'mix'(混合推荐), 'circle'(圆), 'cross'(十字), 'ring'(空心圈)
                 style: 'mix',
 
-                // 背景粒子数量 (粒子变大了，数量要减少，否则电脑上会乱)
+                // 背景粒子数量
                 countMobile: 40,     
                 countDesktop: 80,
 
                 // 漂浮速度 (越小越慢，营造太空感)
                 speed: 0.3,           
 
-                // 粒子大小范围 (★关键修改：最小值调大，最大值调大，电脑端才看得清)
+                // 粒子大小范围
                 sizeMin: 2.0,
                 sizeMax: 8.0,
 
-                // 颜色与透明度 (建议淡一点，不要抢主角风头)
+                // 颜色与透明度
                 color: '255, 255, 255', // RGB 颜色
                 opacity: 0.4            // 基础透明度
             },
 
-            // ===============================================
-            // ====== [新增功能] 烟花配置区 (Fireworks) ======
-            // ===============================================
+            // ============================================
+            // ====== [6. 烟花系统配置 (FIREWORKS)] ======
+            // ============================================
             fireworks: {
                 // 上升速度 (数值越大越快)
-                launchSpeedMobile: 5,
-                launchSpeedDesktop: 6,
+                launchSpeedMobile: 3,
+                launchSpeedDesktop: 4,
 
-                // [NEW] 上升时的抖动幅度 (模拟飞行不稳)
-                // 0 = 笔直上升, 3 = 明显S型抖动
+                // 上升时的抖动幅度 (模拟飞行不稳)
                 ascentWobble: 3, 
 
-                // 爆炸后粒子数量 (手机少一点防卡)
+                // 爆炸后粒子数量
                 explosionCountMobile: 60,
                 explosionCountDesktop: 120,
 
@@ -289,32 +556,25 @@
                 // 阻力 (空气阻力，防止飞太远)
                 friction: 0.96,
 
-                // [NEW] 粒子残留时间控制 (数值越小，消失越慢)
-                // 之前是 0.015~0.03，现在调小，让它留久一点
+                // 粒子残留时间控制 (数值越小，消失越慢)
                 decayMin: 0.003,
                 decayMax: 0.008,
 
-                // ========================================
-                // ====== [全新] 烟花样式与文字控制区 ======
-                // ========================================
+                // --- 爆炸花样 ---
                 patterns: {
-                    // 爆炸形状控制：是否启用多种花样（圆形、圆环、球体等）
-                    // false = 只用最普通的随机炸开
-                    // true = 随机出现各种几何形状
+                    // 爆炸形状控制：是否启用多种花样
                     enabled: true, 
 
-                    // 爆炸范围缩放 (Scale) - 想要炸得更大改这里
+                    // 爆炸范围缩放 (Scale)
                     scaleMobile: 1.2,
                     scaleDesktop: 1.5 
                 },
 
-                // [★ 核心功能] 文字烟花配置
-                // 炸开后变成祝福语，而不是普通火花
+                // --- 文字烟花 (核心功能) ---
                 textFireworks: {
                     enabled: true,
                     
-                    // 出现的概率 (0.0 ~ 1.0)
-                    // 0.3 表示 30% 的烟花会炸成文字，70% 是普通烟花
+                    // 出现的概率 (0.3 表示 30% 的烟花会炸成文字)
                     probability: 0.3, 
 
                     // 祝福语列表 (炸开时随机选一个)
@@ -324,121 +584,240 @@
                     particleSizeMobile: 1.8,
                     particleSizeDesktop: 2.5,
 
-                    // [NEW] 文字炸开的范围大小 (值越大，字炸得越开)
+                    // 文字炸开的范围大小
                     explosionScaleMobile: 1.5,
                     explosionScaleDesktop: 2.2,
 
-                    // 文字烟花的持续时间 (数值越小消失越慢，建议比普通烟花慢一点以便看清)
+                    // 文字烟花的持续时间
                     decaySpeed: 0.004,
 
-                    // [NEW] 颜色控制模式
-                    // 'gold'   = 强制全金
-                    // 'random' = 每次炸开一种随机纯色 (推荐)
-                    // 'fixed'  = 强制固定颜色 (需设置 fixedColor)
+                    // 颜色控制模式: 'gold', 'random', 'fixed'
                     colorMode: 'random', 
                     
-                    // 当 colorMode 为 'fixed' 时生效，格式 '255, 100, 100'
+                    // 当 colorMode 为 'fixed' 时生效
                     fixedColor: '255, 255, 255'
                 },
 
-                // ========================================
-                // ====== [全新] 尾烟配置 (Smoke Trail) ======
-                // ========================================
+                // --- 尾烟配置 ---
                 smoke: {
                     enabled: true,
-                    
-                    // 尾烟颜色 (RGB格式)
                     color: '180, 180, 180',
-                    
-                    // 尾烟大小
                     sizeMobile: 1.5,
                     sizeDesktop: 2.5,
-                    
-                    // 尾烟消散速度 (数值越大消失越快)
                     decaySpeed: 0.02,
-                    
-                    // 尾烟产生频率 (1 = 每帧都产, 2 = 每2帧产一次)
                     interval: 2,
-                    
-                    // 尾烟左右扩散随机性
                     jitter: 0.5
                 }
             },
 
-            // ===============================================
-            // ====== [新增功能] 底部 UI 控制区 ======
-            // ===============================================
+            // ============================================
+            // ====== [7. UI 与交互 (UI)] ======
+            // ============================================
             ui: {
                 // 博客跳转链接
                 blogUrl: "https://zh.maxtonniu.com",
 
-                // 底部按钮栏距离底部的距离 (CSS 格式)
-                bottomPosition: "4%",
-
-                // [NEW] 两个按钮之间的间距 (px) - 可以把两个按钮分开
-                buttonGapMobile: 60,
-                buttonGapDesktop: 100,
-
-                // [NEW] 底部防误触区域高度 (px)
-                // 点击屏幕底部这个高度内，不会触发烟花，只会触发按钮
+                // 底部防误触区域高度 (px)
                 safeZoneHeightMobile: 100,
                 safeZoneHeightDesktop: 80,
 
-                // [NEW] 提示语文字
+                // 提示语文字
                 touchHintText: "戳戳屏幕有惊喜",
+
+                // [新增] 免责声明内容配置
+                disclaimer: {
+                    text: "本网页基于纯静态前端，不会收集您任何输入的东西（我哪有这闲钱买服务器这东西）",
+                    color: "rgba(255, 255, 255, 0.4)",
+                    fontSize: "12px"
+                },
 
                 // 自动放烟花的参数
                 autoFire: {
                     minInterval: 300,  // 最快多久放一次 (毫秒)
                     maxInterval: 1200, // 最慢多久放一次 (毫秒)
-                    
-                    // [NEW] 每次并发最多放几个? (1~3)
-                    maxConcurrent: 3
+                    maxConcurrent: 3   // 每次并发最多放几个?
+                },
+
+                // ==========================================================
+                // ====== [核心新增] 按钮位置自定义配置 (BUTTON POSITIONS) ======
+                // ==========================================================
+                // 说明：
+                // 1. 分为 'mobile' (手机) 和 'desktop' (电脑) 两套配置。
+                // 2. 支持 top, bottom, left, right 四个属性。
+                // 3. 如果不需要某个方向，请设为 null 或注释掉。
+                // 4. 单位可以是 '%' (百分比) 或 'px' (像素)。
+                // ==========================================================
+                positions: {
+                    // --- 1. 自动放烟花按钮 (Auto Fire Button) ---
+                    autoBtn: {
+                        mobile: {
+                            bottom: '4%',      // 距离底部
+                            left: '8%',        // 距离左侧
+                            top: null, right: null // 不用管
+                        },
+                        desktop: {
+                            bottom: '4%',
+                            left: '8%',
+                            top: null, right: null
+                        }
+                    },
+
+                    // --- 2. 返回博客按钮 (Back Blog Button) ---
+                    blogBtn: {
+                        mobile: {
+                            bottom: '4%',
+                            right: '10%',       // 距离右侧
+                            top: null, left: null
+                        },
+                        desktop: {
+                            bottom: '4%',
+                            right: '10%',
+                            top: null, left: null
+                        }
+                    },
+
+                    // --- 3. 音量控制按钮 (Volume Button) ---
+                    // 注意：音量滑块面板会自动跟随这个按钮
+                    volumeBtn: {
+                        mobile: {
+                            bottom: '4%',
+                            left: '50%',       // 居中
+                            // 如果使用了百分比居中，通常需要配合 CSS transform translate，
+                            // 但这里我们通过 JS 简单处理：如果是 50%，我们手动修正一下 transform，
+                            // 或者你可以简单地不用 50%，而是用 padding 估算。
+                            // 为了方便，我们在下面的 JS 代码里加了 transform: translateX(-50%) 的处理逻辑。
+                            top: null, right: null
+                        },
+                        desktop: {
+                            bottom: '4%',
+                            left: '50%',
+                            top: null, right: null
+                        }
+                    }
                 }
             },
 
-            // ===============================================
-            // ====== [新增功能] 音效系统配置 (Sound System) ======
-            // ===============================================
+            // ============================================
+            // ====== [8. 音频与音乐 (AUDIO)] ======
+            // ============================================
             sound: {
-                enabled: true,       // 音效总开关
-                volume: 0.5,         // 全局音量 (0 ~ 1)
+                enabled: false,       // 烟花音效总开关 (建议由滑块控制)
+                volume: 0.5,         // 烟花音效全局初始音量 (0 ~ 1)
                 
-                // 资源路径定义 (请确保 public/audio 目录下有这些文件)
+                // 资源路径定义
                 files: {
-                    // 发射音效 (升空)
-                    lift: [
-                        '/audio/lift1.mp3', 
-                        '/audio/lift2.mp3', 
-                        '/audio/lift3.mp3'
-                    ],
-                    // 爆炸音效 (大)
-                    burst: [
-                        '/audio/burst1.mp3', 
-                        '/audio/burst2.mp3'
-                    ],
-                    // 小炸裂 (用于文字烟花或小烟花)
-                    burstSmall: [
-                        '/audio/burst-sm-1.mp3', 
-                        '/audio/burst-sm-2.mp3'
-                    ],
-                    // 噼啪声 (预留)
-                    crackle: [
-                        '/audio/crackle1.mp3',
-                        '/audio/crackle-sm-1.mp3'
-                    ]
+                    lift: ['/audio/lift1.mp3', '/audio/lift2.mp3', '/audio/lift3.mp3'],
+                    burst: ['/audio/burst1.mp3', '/audio/burst2.mp3'],
+                    burstSmall: ['/audio/burst-sm-1.mp3', '/audio/burst-sm-2.mp3'],
+                    crackle: ['/audio/crackle1.mp3', '/audio/crackle-sm-1.mp3']
                 }
+            },
+
+            // [新增] 背景音乐配置 (BGM)
+            music: {
+                enabled: true,       // 背景音乐总开关
+                volume: 0.5,         // 背景音乐初始音量 (0 ~ 1)
+                
+                // 音乐文件列表 (请放在 public/audio/bgm/ 目录下)
+                // 刷新页面时会随机从这里选一首作为本次的 BGM
+                files: [
+                    '/audio/bgm/daoxiang.mp3',
+                    '/audio/bgm/xiyuanqian.mp3',
+                    '/audio/bgm/longjuanfeng.mp3'
+                ]
             }
         };
         // ===============================================
 
+        // [新增] 初始化词汇逻辑：如果开启随机，则覆盖原有的 transitionTexts 和 carouselTexts
+        function initTextLogic() {
+            if (CONFIG.textLogic.randomize && CONFIG.textLogic.pool.length > 0) {
+                // 1. 克隆并打乱大词库
+                const shuffled = [...CONFIG.textLogic.pool].sort(() => Math.random() - 0.5);
+                
+                // 2. 截取需要的数量
+                const tCount = CONFIG.textLogic.transitionCount;
+                const cCount = CONFIG.textLogic.carouselCount;
+                
+                // 防止数组越界
+                if (shuffled.length >= tCount + cCount) {
+                    CONFIG.transitionTexts = shuffled.slice(0, tCount);
+                    CONFIG.carouselTexts = shuffled.slice(tCount, tCount + cCount);
+                } else {
+                    console.warn("词汇库数量不足，无法完全随机，回退到默认设置");
+                }
+            }
+        }
+        // 立即执行词汇初始化
+        initTextLogic();
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d'); 
         
-        // 应用 UI 配置位置
-        const controlsLayer = document.getElementById('controls-layer');
-        controlsLayer.style.bottom = CONFIG.ui.bottomPosition;
+        // 应用 UI 配置位置 (这里稍后在 resize 中调用)
         document.getElementById('touch-hint').innerText = CONFIG.ui.touchHintText;
+
+        // [新增] 应用按钮自定义位置逻辑 (Apply Custom Button Positions)
+        function applyButtonPositions() {
+            const posCfg = CONFIG.ui.positions;
+            const mode = isMobile ? 'mobile' : 'desktop';
+
+            // 辅助函数：应用样式到元素
+            function setStyle(elemId, cfg) {
+                const el = document.getElementById(elemId);
+                if (!el) return;
+
+                // 重置所有定位
+                el.style.top = 'auto';
+                el.style.bottom = 'auto';
+                el.style.left = 'auto';
+                el.style.right = 'auto';
+                el.style.transform = 'none'; // 重置 transform
+                el.style.margin = '0';       // 重置 margin
+
+                // 应用新配置
+                if (cfg.top) el.style.top = cfg.top;
+                if (cfg.bottom) el.style.bottom = cfg.bottom;
+                if (cfg.left) el.style.left = cfg.left;
+                if (cfg.right) el.style.right = cfg.right;
+
+                // 特殊处理：如果 left 是 50%，自动加居中偏移
+                if (cfg.left === '50%') {
+                    el.style.transform = 'translateX(-50%)';
+                }
+            }
+
+            // 1. 自动烟花按钮
+            setStyle('btn-auto', posCfg.autoBtn[mode]);
+            
+            // 2. 返回博客按钮
+            setStyle('btn-blog', posCfg.blogBtn[mode]);
+
+            // 3. 音量容器 (注意：我们定位的是 .volume-container 类)
+            // 因为 volume-container 是 class，这里手动获取
+            const volContainer = document.querySelector('.volume-container');
+            if (volContainer) {
+                const vCfg = posCfg.volumeBtn[mode];
+                volContainer.style.top = 'auto'; volContainer.style.bottom = 'auto';
+                volContainer.style.left = 'auto'; volContainer.style.right = 'auto';
+                volContainer.style.transform = 'none';
+
+                if (vCfg.top) volContainer.style.top = vCfg.top;
+                if (vCfg.bottom) volContainer.style.bottom = vCfg.bottom;
+                if (vCfg.left) volContainer.style.left = vCfg.left;
+                if (vCfg.right) volContainer.style.right = vCfg.right;
+
+                if (vCfg.left === '50%') {
+                    volContainer.style.transform = 'translateX(-50%)';
+                }
+            }
+        }
+
+        // [新增] 应用免责声明内容
+        const disclaimerEl = document.getElementById('disclaimer');
+        disclaimerEl.innerText = CONFIG.ui.disclaimer.text;
+        disclaimerEl.style.color = CONFIG.ui.disclaimer.color;
+        disclaimerEl.style.fontSize = CONFIG.ui.disclaimer.fontSize;
 
         let width, height, dpr;
         let particles = []; 
@@ -470,6 +849,95 @@
         let hasTouchedInFinal = false;
 
         // ===============================================
+        // ====== [逻辑] 开场动画管理 ======
+        // ===============================================
+        function runIntroSequence() {
+            const introLayer = document.getElementById('intro-layer');
+            const introText = document.getElementById('intro-text');
+            const uiLayer = document.getElementById('ui-layer');
+
+            // 1. 检查 LocalStorage 和配置
+            const hasSeen = localStorage.getItem('hasSeenIntro_2026');
+            
+            // 如果没开启，或者（不是强制一直显示 且 已经看过了），则跳过
+            if (!CONFIG.intro.enabled || (!CONFIG.intro.alwaysShow && hasSeen)) {
+                introLayer.style.display = 'none';
+                uiLayer.style.display = 'block';
+                setTimeout(() => { uiLayer.style.opacity = 1; }, 50); // 稍微延迟触发淡入
+                return;
+            }
+
+            // 标记已观看
+            localStorage.setItem('hasSeenIntro_2026', 'true');
+
+            // 2. 开始动画流程
+            let stepIndex = 0;
+            const texts = CONFIG.intro.texts;
+
+            function showNextText() {
+                if (stepIndex >= texts.length) {
+                    // 动画结束
+                    introLayer.style.opacity = 0; // 大黑层淡出
+                    setTimeout(() => {
+                        introLayer.style.display = 'none'; // 彻底隐藏
+                        uiLayer.style.display = 'block';   // 显示输入框层
+                        setTimeout(() => { uiLayer.style.opacity = 1; }, 50); // UI 淡入
+                    }, CONFIG.intro.fadeSpeed);
+                    return;
+                }
+
+                // 切换文字
+                introText.style.opacity = 0; // 先隐
+                setTimeout(() => {
+                    introText.innerHTML = texts[stepIndex]; // 换字
+                    introText.style.opacity = 1; // 显
+                    
+                    // 停留一段时间后
+                    setTimeout(() => {
+                        stepIndex++;
+                        showNextText(); // 递归调用
+                    }, CONFIG.intro.duration);
+
+                }, CONFIG.intro.fadeSpeed / 2); // 文字切换的小间隙
+            }
+
+            showNextText();
+        }
+        
+        // 页面加载完成后运行开场逻辑
+        window.addEventListener('load', runIntroSequence);
+
+        // ===============================================
+        // ====== [核心新增] 背景音乐管理器 BGM Manager ======
+        // ===============================================
+        const bgmManager = {
+            audio: new Audio(),
+            init() {
+                if (!CONFIG.music.enabled || CONFIG.music.files.length === 0) return;
+                
+                // 随机选一首
+                const randomSong = CONFIG.music.files[Math.floor(Math.random() * CONFIG.music.files.length)];
+                
+                this.audio.src = randomSong;
+                this.audio.loop = true; // 循环播放
+                this.audio.volume = CONFIG.music.volume;
+                
+                // 预加载
+                this.audio.load();
+            },
+            play() {
+                if (!CONFIG.music.enabled) return;
+                // 必须在用户交互后调用
+                this.audio.play().catch(e => console.log("BGM autoplay prevented, waiting for interaction"));
+            },
+            setVolume(val) {
+                this.audio.volume = Math.max(0, Math.min(1, val));
+            }
+        };
+        // 立即初始化 BGM
+        bgmManager.init();
+
+        // ===============================================
         // ====== [核心新增] 音效管理器 SoundManager ======
         // ===============================================
         const soundManager = {
@@ -480,7 +948,8 @@
 
             // 初始化：尝试创建 AudioContext (需要用户交互后才能 resume)
             init() {
-                if (!CONFIG.sound.enabled) return;
+                // 注意：这里我们总是初始化 AudioContext，即使 enabled 暂时为 false，
+                // 因为用户可能通过 UI 滑块稍后开启声音。
                 try {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
                     this.ctx = new AudioContext();
@@ -519,7 +988,12 @@
             // type: 'lift', 'burst', 'burstSmall', 'crackle'
             // scale: 0.0 ~ 1.0 (影响音调和音量，烟花越小声音越尖越小)
             playSound(type, scale = 1) {
-                if (!CONFIG.sound.enabled || !this.ctx) return;
+                // 如果开关没开，或者音量为0，就不播
+                if (!CONFIG.sound.enabled && CONFIG.sound.volume <= 0.01) return;
+                // 或者显式检查 enabled
+                if (!CONFIG.sound.enabled && document.getElementById('sfx-slider').value <= 0) return;
+
+                if (!this.ctx) return;
 
                 // 检查资源是否加载完毕
                 const bufferList = this.buffers[type];
@@ -552,6 +1026,8 @@
                 // 算法：1.2 - scale * 0.2 (scale=1时是1.0，scale=0.5时是1.1)
                 // 这里做一个更明显的映射
                 let rate = 1.0;
+                
+                // [修改] 使用 CONFIG.sound.volume 作为基准音量
                 let volume = CONFIG.sound.volume;
 
                 if (type === 'burst' || type === 'burstSmall') {
@@ -675,9 +1151,8 @@
             isMobile = width < 768;
             baseParticleSize = isMobile ? 1.6 : 2.0;
 
-            // [新增] 动态应用按钮间距
-            const gap = isMobile ? CONFIG.ui.buttonGapMobile : CONFIG.ui.buttonGapDesktop;
-            document.getElementById('controls-layer').style.gap = `${gap}px`;
+            // [新增] 动态应用按钮位置 (替换原有的 Gap 逻辑)
+            applyButtonPositions();
 
             // [新增] 每次调整窗口大小时重置背景
             initBackground();
@@ -740,9 +1215,9 @@
                 } else if (this.isTwinkler && CONFIG.visuals.twinkleAdditive) {
                     // 仅在波峰高亮时启用叠加
                     if (currentAlpha > 0.3) {
-                          ctx.globalCompositeOperation = 'lighter';
+                           ctx.globalCompositeOperation = 'lighter';
                     } else {
-                          ctx.globalCompositeOperation = 'source-over';
+                           ctx.globalCompositeOperation = 'source-over';
                     }
                 } else {
                     ctx.globalCompositeOperation = 'source-over';
@@ -866,8 +1341,11 @@
             isFinalState = true;
             particles = []; staticTopParticles = []; carouselGroups = [];
 
-            // 显示控制栏
-            document.getElementById('controls-layer').style.opacity = 1;
+            // [修改] 只显示原本被隐藏的按钮，音量按钮一直都在
+            const hiddenBtns = document.querySelectorAll('.initially-hidden');
+            hiddenBtns.forEach(btn => {
+                btn.classList.add('reveal-btn');
+            });
             
             // [新增] 显示戳戳屏幕提示
             if (!hasTouchedInFinal) {
@@ -964,6 +1442,9 @@
             
             // [新增] 用户交互触发音频解锁 (iOS/Chrome 策略要求)
             soundManager.resume();
+            
+            // [新增] 开始播放背景音乐
+            bgmManager.play();
 
             userName = input.value;
             document.getElementById('ui-layer').style.opacity = 0;
@@ -1287,6 +1768,23 @@
             window.location.href = CONFIG.ui.blogUrl;
         }
 
+        // [修改] 音量 UI 交互函数 - 控制竖向面板显示
+        function toggleVolumePanel() {
+            const panel = document.getElementById('volume-panel-vertical');
+            panel.classList.toggle('show');
+        }
+
+        function updateBgmVolume(val) {
+            CONFIG.music.volume = parseFloat(val);
+            bgmManager.setVolume(CONFIG.music.volume);
+        }
+
+        function updateSfxVolume(val) {
+            CONFIG.sound.volume = parseFloat(val);
+            // 顺便如果音量大于0，开启音效 enabled，否则关闭，优化性能
+            CONFIG.sound.enabled = (CONFIG.sound.volume > 0.01);
+        }
+
         // ===============================================
 
         let isAnimating = false;
@@ -1294,8 +1792,10 @@
             // [新增] 交互时尝试解锁 AudioContext
             soundManager.resume();
 
-            // 排除点击到底部按钮的情况 (虽然 CSS pointer-events 处理了，但双重保险)
-            if (e.target.tagName === 'BUTTON') return;
+            // 排除点击到底部按钮和音量控件的情况
+            // 使用 closest 检查点击是否发生在 button 或 .volume-container 内部
+            if (e.target.tagName === 'BUTTON' || e.target.closest('.volume-container') || e.target.tagName === 'INPUT') return;
+            
             if (e.type === 'touchstart') e.preventDefault();
             
             let clientX, clientY;
