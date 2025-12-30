@@ -8,26 +8,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026新年祝福</title>
+    
+    <script is:inline src="/scripts/lz-string.min.js"></script>
+
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
         /* ============================================================ */
-        /* ====== [新增] 开场动画层 (Intro Layer) ====== */
+        /* ====== 开场动画层 (Intro Layer) ====== */
         /* ============================================================ */
         #intro-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #000;
-            z-index: 100; /* 最高层级 */
+            z-index: 100;
             display: flex; justify-content: center; align-items: center;
             color: rgba(255, 255, 255, 0.9);
             font-size: 24px; letter-spacing: 4px; font-weight: 300;
-            pointer-events: none; /* 动画期间不让点 */
+            pointer-events: none;
             opacity: 1;
-            transition: opacity 1s; /* 默认淡出速度，JS中会动态控制 */
+            transition: opacity 1s;
         }
         
-        /* 呼吸灯动画效果 */
         .breathing {
             animation: breathe 3s ease-in-out infinite;
         }
@@ -37,8 +39,16 @@
             100% { opacity: 0.3; transform: scale(0.95); }
         }
 
+        .error-style {
+            color: #ff3333;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            line-height: 1.5;
+        }
+
         /* ============================================================ */
-        
+        /* ====== UI Layer (Input) ====== */
+        /* ============================================================ */
         #ui-layer {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -46,22 +56,16 @@
             transition: opacity 0.5s;
             width: 100%;
             pointer-events: auto;
-            /* [修改] 初始透明度设为0，等待开场动画结束后显示 */
             opacity: 0; 
-            display: none; /* 初始隐藏 */
+            display: none;
         }
         
-        /* [修改] 输入框样式：由原本的红色改为浅灰色低调风格 */
         input {
             padding: 15px 20px; font-size: 18px; border-radius: 30px;
-            /* 原来的红色边框被注释掉，改为浅灰 */
-            /* border: 2px solid #ff4d4d; */
             border: 2px solid rgba(255, 255, 255, 0.3); 
             background: rgba(0,0,0,0.8);
             color: white; outline: none; text-align: center; width: 60%; max-width: 300px;
             margin-bottom: 20px;
-            /* 原来的红色阴影改为浅白阴影 */
-            /* box-shadow: 0 0 15px rgba(255, 77, 77, 0.3); */
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
         }
         
@@ -74,7 +78,6 @@
         }
         button:active { transform: scale(0.95); }
 
-        /* [新增] 免责声明样式 */
         #disclaimer {
             margin-top: 25px;
             font-size: 12px;
@@ -92,30 +95,31 @@
             letter-spacing: 2px;
         }
 
-        /* [新增] 底部交互提示语 (戳戳屏幕有惊喜) */
         #touch-hint {
             position: absolute;
-            bottom: 12%; /* 位于按钮上方一点点 */
+            bottom: 12%; 
             width: 100%;
             text-align: center;
             color: rgba(255, 255, 255, 0.5);
             font-size: 13px;
             pointer-events: none;
-            opacity: 0; /* 初始隐藏 */
+            opacity: 0;
             transition: opacity 1s;
             letter-spacing: 1px;
             z-index: 19;
             text-shadow: 0 0 5px rgba(0,0,0,0.8);
         }
 
-        /* [修改] 控制栏容器 - 不再负责具体布局，只作为一个全屏覆盖层 */
+        /* ============================================================ */
+        /* ====== Control Buttons Layer ====== */
+        /* ============================================================ */
         #controls-layer {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%; /* 全屏覆盖 */
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 20;
             opacity: 1; 
             transition: opacity 1.5s;
-            pointer-events: none; /* 自身不挡点击，子元素按钮挡点击 */
+            pointer-events: none;
         }
 
         .control-btn {
@@ -124,44 +128,33 @@
             padding: 8px 16px;
             font-size: 14px;
             color: rgba(255, 255, 255, 0.8);
-            background: rgba(255, 255, 255, 0.1); /* 半透明背景 */
+            background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
             cursor: pointer;
-            backdrop-filter: blur(4px); /* 磨砂玻璃效果 */
+            backdrop-filter: blur(4px);
             transition: all 0.3s;
             text-decoration: none;
-            box-shadow: none; /* 移除原来的发光阴影，保持低调 */
-            background-image: none; /* 移除原来的渐变 */
+            box-shadow: none; 
+            background-image: none; 
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            white-space: nowrap; /* 防止文字换行影响布局 */
+            white-space: nowrap; 
         }
         
-        /* [新增] 初始隐藏的按钮 (自动烟花 和 返回博客)，等到 Final 阶段才显示 */
         .initially-hidden {
             opacity: 0;
             pointer-events: none;
-            transform: scale(0.9);
-            transition: all 0.5s ease-out; /* 添加平滑过渡 */
+            transition: opacity 0.8s ease-out; 
         }
         
-        /* [修改] 左右按钮的定位样式 - 这里仅设置 position，具体 top/bottom/left/right 由 JS 动态控制 */
-        #btn-auto {
+        #btn-auto, #btn-blog, #btn-share {
             position: absolute;
-            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
         }
 
-        #btn-blog {
-            position: absolute;
-            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
-        }
-
-        /* 显示状态类 */
         .reveal-btn {
             opacity: 1 !important;
             pointer-events: auto !important;
-            transform: scale(1) !important;
         }
 
         .control-btn:hover {
@@ -171,29 +164,122 @@
         }
         
         .control-btn:active {
-            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.4); 
         }
 
-        /* [修改] 按钮激活状态样式：由原来的大红色改为柔和的暖金色/橙色 */
-        /* 不扎眼，但能看得出区别 */
         .control-btn.active {
-            /* 新颜色：柔和的橙金 */
             background: rgba(255, 165, 0, 0.25); 
             border-color: rgba(255, 190, 80, 0.7);
             color: #fff;
-            /* 添加一点点柔和的外发光，增加区分度 */
             box-shadow: 0 0 10px rgba(255, 165, 0, 0.2); 
         }
 
         /* ============================================================ */
-        /* ====== [修改] 音量控制样式 (整合到底部中间) ====== */
+        /* ====== 分享留言弹窗样式 (Share Modal) - 升级版 ====== */
         /* ============================================================ */
-        
-        /* 音量按钮容器 (用于定位弹出面板) */
-        /* [修改] 这里设置为绝对定位，具体位置由 JS 控制 */
+        #share-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+            backdrop-filter: blur(2px);
+        }
+
+        #share-overlay.show {
+            opacity: 1; pointer-events: auto;
+        }
+
+        .share-box {
+            width: 85%; max-width: 400px;
+            background: rgba(30, 30, 30, 0.9); /* 加深一点背景 */
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            color: #fff;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #share-overlay.show .share-box {
+            transform: scale(1);
+        }
+
+        .close-btn {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 24px; color: rgba(255,255,255,0.5);
+            cursor: pointer; font-family: sans-serif;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: #fff; }
+
+        .share-title {
+            margin: 0 0 15px 0; font-size: 18px; letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .share-desc {
+            font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 15px; line-height: 1.4;
+        }
+
+        /* 两个输入框的样式 */
+        .share-input-group {
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        .share-label {
+            font-size: 12px; color: rgba(255,255,255,0.6); margin-left: 5px; margin-bottom: 5px; display: block;
+        }
+        .share-input-area {
+            width: 100%; box-sizing: border-box;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px; color: #fff; padding: 10px;
+            font-size: 15px; font-family: inherit;
+            resize: none; 
+            outline: none;
+        }
+        .share-input-area:focus { border-color: rgba(255,255,255,0.5); }
+
+        .modal-btn {
+            padding: 8px 25px; border-radius: 20px; font-size: 14px;
+            cursor: pointer; border: none; font-weight: bold; color: white;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .btn-gen { background: linear-gradient(45deg, #ff8c00, #ff4d4d); box-shadow: 0 0 10px rgba(255,77,77,0.3); }
+        .modal-btn:active { transform: scale(0.95); }
+
+        .result-container {
+            display: none;
+            margin-top: 20px; padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .result-column {
+            display: flex; flex-direction: column; gap: 8px; align-items: center;
+        }
+        .link-output {
+            width: 100%; 
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; color: rgba(255,255,255,0.9);
+            padding: 10px; font-size: 12px; outline: none;
+            word-break: break-all;
+            height: auto;
+            text-align: left;
+        }
+        .copy-hint-text {
+            font-size: 12px; color: rgba(255,255,255,0.4);
+        }
+
+        /* ============================================================ */
+        /* ====== Volume Control (Vertical) ====== */
+        /* ============================================================ */
         .volume-container {
             position: absolute;
-            /* 样式由 JS 的 CONFIG.ui.positions 控制 */
             pointer-events: auto;
             display: flex;
             justify-content: center;
@@ -202,126 +288,60 @@
             z-index: 25;
         }
 
-        /* 触发按钮样式 (保持和其他按钮一致) */
         #volume-trigger-btn {
-            width: 40px; 
-            height: 36px; /* 和其他按钮差不多高 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 18px;
-            padding: 0; /* 图标居中 */
+            width: 40px; height: 36px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 18px; padding: 0;
         }
 
-        /* [修改] 向上弹出的面板 - 极简风格 */
         #volume-panel-vertical {
             position: absolute;
-            bottom: 50px; /* 距离底部按钮的距离 */
-            left: 50%;
-            /* 初始状态：下移且缩小 */
+            bottom: 50px; left: 50%;
             transform: translateX(-50%) translateY(20px) scale(0.9); 
-            
-            /* [修改] 宽度加宽，以容纳左右两个滑块 */
-            width: 140px; 
-            height: 140px; /* 高度适中 */
-            
-            /* [UI 修改] 去掉大色块背景，改为极简 */
+            width: 140px; height: 140px; 
             background: transparent; 
-            /* 如果需要一点点背景保证文字可见，可以用极淡的渐变，这里先设为全透明突出极简 */
-            
-            display: flex;
-            flex-direction: row; 
-            align-items: flex-end; /* 底部对齐 */
-            justify-content: center; 
-            gap: 20px; /* 两个音量条之间的间距 */
-            padding-bottom: 10px;
-            
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性弹出动画 */
+            display: flex; flex-direction: row; 
+            align-items: flex-end; justify-content: center; 
+            gap: 20px; padding-bottom: 10px;
+            opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             z-index: 100;
         }
 
         #volume-panel-vertical.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0) scale(1);
+            opacity: 1; transform: translateX(-50%) translateY(0) scale(1);
             pointer-events: auto;
         }
 
-        /* 滑块包装器 */
         .vol-slider-wrap {
-            height: 100%; 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            width: 30px;
+            height: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-end; width: 30px;
         }
 
         .vol-icon-small {
-            font-size: 12px;
-            color: rgba(255,255,255,0.8);
-            margin-top: 10px; /* 图标在滑块下方 */
-            text-shadow: 0 0 2px rgba(0,0,0,0.5);
+            font-size: 12px; color: rgba(255,255,255,0.8);
+            margin-top: 10px; text-shadow: 0 0 2px rgba(0,0,0,0.5);
         }
 
-        /* [UI 修改] 极简细线条风格滑块 */
-        
-        /* 容器需要旋转，因为 range 默认是横向的 */
         .range-holder {
-            width: 30px;
-            height: 100px; /* 轨道视觉长度 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 30px; height: 100px; 
+            display: flex; align-items: center; justify-content: center;
         }
         
         input[type=range].vertical-range-transform {
-            -webkit-appearance: none; /* 清除默认样式 */
-            width: 100px; /* 实际宽度 (旋转后变成高度) */
-            height: 20px; /* 触控区域高度，不影响视觉线条粗细 */
-            background: transparent;
-            transform: rotate(-90deg); /* 旋转90度变成竖向 */
-            outline: none;
-            cursor: pointer;
+            -webkit-appearance: none; width: 100px; height: 20px;
+            background: transparent; transform: rotate(-90deg);
+            outline: none; cursor: pointer;
         }
 
-        /* 轨道样式 (Chrome/Safari/Edge) */
         input[type=range].vertical-range-transform::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 2px; /* 线条粗细：细线 */
-            background: rgba(255, 255, 255, 0.3); /* 半透明白线 */
-            border-radius: 1px;
-            border: none;
+            width: 100%; height: 2px; background: rgba(255, 255, 255, 0.3); border-radius: 1px; border: none;
         }
 
-        /* 滑块圆点样式 (Chrome/Safari/Edge) */
         input[type=range].vertical-range-transform::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 14px;
-            width: 14px;
-            border-radius: 50%;
-            background: #ffffff; /* 纯白圆点 */
-            margin-top: -6px; /* (轨道高度2px / 2) - (圆点高度14px / 2) = 1 - 7 = -6 */
-            box-shadow: 0 0 5px rgba(0,0,0,0.3); /* 轻微阴影 */
-            border: none;
-        }
-
-        /* Firefox 兼容 */
-        input[type=range].vertical-range-transform::-moz-range-track {
-            width: 100%;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 1px;
-            border: none;
-        }
-        input[type=range].vertical-range-transform::-moz-range-thumb {
-            height: 14px;
-            width: 14px;
-            border-radius: 50%;
-            background: #ffffff;
-            border: none;
-            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            -webkit-appearance: none; height: 14px; width: 14px;
+            border-radius: 50%; background: #ffffff;
+            margin-top: -6px; box-shadow: 0 0 5px rgba(0,0,0,0.3); border: none;
         }
 
     </style>
@@ -346,6 +366,8 @@
     <div id="controls-layer">
         <button class="control-btn initially-hidden" id="btn-auto" onclick="toggleAutoFire()">自动放烟花: 关</button>
         
+        <button class="control-btn initially-hidden" id="btn-share" onclick="openShareModal()">戳我留言</button>
+
         <div class="volume-container">
             <div id="volume-panel-vertical">
                 <div class="vol-slider-wrap">
@@ -367,40 +389,144 @@
         <button class="control-btn initially-hidden" id="btn-blog" onclick="goBlog()">访问我的博客</button>
     </div>
 
+    <div id="share-overlay">
+        <div class="share-box">
+            <div class="close-btn" onclick="closeShareModal()">×</div>
+            <div class="share-title" id="share-title-text"></div>
+            <div class="share-desc" id="share-desc-text"></div>
+            
+            <div class="share-input-group">
+                <label class="share-label">对方的名字</label>
+                <input type="text" class="share-input-area" id="share-name-input" maxlength="12" placeholder="例如: Maxton">
+            </div>
+            
+            <div class="share-input-group">
+                <label class="share-label">想对TA说的话 (隐藏彩蛋)</label>
+                <textarea class="share-input-area" id="share-msg-input" rows="3" placeholder="在快速旋转圆环时才会出现哦..."></textarea>
+            </div>
+            
+            <button class="modal-btn btn-gen" onclick="generateShareLink()">生成链接</button>
+            
+            <div class="result-container" id="share-result">
+                <div class="result-column">
+                    <textarea class="link-output" id="share-link-output" rows="3" readonly></textarea>
+                    <span class="copy-hint-text">请长按上方链接手动复制</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <canvas id="canvas"></canvas>
 
     <script is:inline>
         // ================= 自定义调整区 =================
         const CONFIG = {
+            
             // ============================================
-            // ====== [新增] 开场动画配置 (INTRO) ======
+            // ====== [1. 核心与URL参数 (CORE & URL)] ======
             // ============================================
-            intro: {
-                // 是否启用开场动画
-                enabled: true, 
+            urlConfig: {
+                // 是否启用URL传参功能
+                enabled: true,
+                // [名字] 参数名，例如 ?a=...
+                paramName: 'n',
+                // 是否自动填入输入框 (true=填入, false=不填)
+                autoFill: true,
+                // 当链接损坏/解压失败时显示的错误提示 (支持HTML)
+                errorText: "链接已损坏或失效<br>请联系发送者重新获取",
+                // 错误提示停留时间 (毫秒)
+                errorDuration: 1300
+            },
 
-                // [配置点 4] true = 无论多少次访问都显示; false = 第一次访问显示，之后刷新不显示
-                alwaysShow:false, 
+            // 隐藏彩蛋 (SECRET MESSAGE) 配置
+            secret: {
+                // [密语] 参数名，例如 ?m=... (lz-string压缩)
+                paramNameMsg: 'm',
+                defaultText: "想给TA留下什么话呢？点击下方按钮生成链接... ", // 没有参数时，圆环显示的引导语
+                ringErrorText: "链接数据已损坏 · 无法查看隐藏内容 · ",     // 链接出错时，圆环显示的错误语
+                
+                // [NEW] 固定半径圆环配置 (Fixed Ring Logic)
+                // 解释：不管字多字少，圆环都这么大，像一个传送带一样滚动内容
+                ring: {
+                    // 圆环半径 (屏幕宽度的倍数)
+                    radiusMobile: 0.5,  
+                    radiusDesktop: 0.2,
 
-                // 开场显示的文字序列 (可自定义)
-                texts: ["建议开启声音<br>获得最佳体验", "Maxton 作品"],
+                    // 每一圈显示多少个字 (槽位数量)
+                    // 超过这个数量的字会变成“无限卷轴”效果
+                    slotsMobile: 20,
+                    slotsDesktop: 20
+                },
+
+                // 物理阈值配置 (根据旋转速度触发)
+                thresholds: {
+                    switch: 0.15,  // 达到这个速度触发切换 (单位: rad/frame)
+                    hint: 0.05,    // 达到这个速度开始提示“再快点”
+                    stop: 0.01     // 低于这个速度视为停下，显示按钮
+                },
+
+                // 提示语配置
+                hints: {
+                    start: "试试快速转动圆环...",
+                    faster: "再快一点！",
+                    revealed: "", // 揭晓后不显示提示，保持神秘
+                    // 当速度极快触发切换后，立刻显示的提示语
+                    slowDown: "魔法出现！请停止转动..."
+                },
+
+                // ====== [新增可控点] 隐藏文字字体大小 ======
+                // 这里独立控制，不影响外面的 carouselMobile 等参数
+                font: {
+                    sizeMobile: 55,   // 手机端隐藏文字大小
+                    sizeDesktop: 120  // 电脑端隐藏文字大小
+                },
                 
-                // 每个文字显示的停留时间 (毫秒)
-                duration: 2000, 
-                
-                // 淡入淡出的过渡时间 (毫秒)
-                fadeSpeed: 1000
+                // [NEW] 远景淡出强度
+                // 数值越大，圆环背面消失得越快，防止穿帮
+                fadePower: 5.0
             },
 
             // ============================================
-            // ====== [1. 文字内容配置 (TEXT CONTENT)] ======
+            // ====== [2. 字体与个性化 (FONT)] ======
+            // ============================================
+            font: {
+                // 是否启用自定义字体？(false 则使用默认微软雅黑)
+                enabled: true, 
+                // 字体文件的 URL 地址 (支持 woff2, ttf, otf)
+                url: '/fonts/ZhanKuXiaoLOGOTi-2.otf', 
+                // 字体名称 (需在 CSS 或 JS 中引用的名字)
+                family: 'MyCustomFont'
+            },
+
+            // ============================================
+            // ====== [3. 交互与物理 (INTERACTION)] ======
+            // ============================================
+            interaction: {
+                // --- 底部 3D 圆环的惯性拖拽参数 ---
+                inertia: {
+                    // 拖拽灵敏度 (数值越大，手指动一点点圆环转得越快)
+                    dragSensitivity: 0.003,
+                    
+                    // 惯性摩擦力 (0.0 ~ 1.0)
+                    // 数值越小，松手后圆环停得越快；数值越大，惯性滑行越久
+                    friction: 0.99,
+                    
+                    // 自动恢复力 (0.0 ~ 1.0)
+                    // 松手后，圆环速度慢慢回归到默认 rotationSpeed 的速度
+                    // 数值越小，恢复得越慢（更丝滑）；数值越大，恢复得越快
+                    restoreSpeed: 0.01
+                }
+            },
+
+            // ============================================
+            // ====== [4. 文字内容配置 (TEXT CONTENT)] ======
             // ============================================
             
-            // [原有] 如果下面的 textLogic.randomize 为 false，则使用这些固定的词
+            // 如果下面的 textLogic.randomize 为 false，则使用这些固定的词
             transitionTexts: ["前程似锦", "学业有成","平安喜乐"],
             carouselTexts: ["财源广进", "吉星高照", "心想事成", "一帆风顺", "未来可期"],
 
-            // [新增功能] 词汇库逻辑控制
+            // 词汇库逻辑控制
             textLogic: {
                 // 是否开启随机抽取？ 
                 // true = 每次刷新网页都从 pool 里随机选词覆盖上面的数组
@@ -427,7 +553,7 @@
             },
 
             // ============================================
-            // ====== [2. 字体与排版 (FONTS & LAYOUT)] ======
+            // ====== [5. 字体与排版 (FONTS & LAYOUT)] ======
             // ============================================
             fontSizes: {
                 // [开场文字] (输入名字后的那个大字)
@@ -460,14 +586,14 @@
 
             // [俯视角度] 0=平视(一条线), 1=完全俯视(正圆)
             tiltFactorMobile: 0.5,    
-            tiltFactorDesktop: 0.4,   
+            tiltFactorDesktop: 0.4,    
             
             // [透视感] 数值越小，近大远小的效果越夸张。
             fovMobile: 1000,    
             fovDesktop: 1400,
 
             // ============================================
-            // ====== [3. 粒子系统设置 (PARTICLES)] ======
+            // ====== [6. 粒子系统设置 (PARTICLES)] ======
             // ============================================
             // 数值代表“每隔多少个像素取一个点”。
             // 1 = 最密 (100% 还原), 1.5 = 适中, 2 = 稀疏
@@ -507,13 +633,13 @@
             },
 
             // ============================================
-            // ====== [4. 动画与物理 (ANIMATION)] ======
+            // ====== [7. 动画与物理 (ANIMATION)] ======
             // ============================================
-            rotationSpeed: 0.0012, // 底部圆环旋转速度
+            rotationSpeed: 0.004, // 底部圆环旋转速度 (默认自转速度)
             particleEase: 0.05,    // 粒子飞行的刹车力度 (0.01=超慢, 0.1=超快)
 
             // ============================================
-            // ====== [5. 背景与氛围 (BACKGROUND)] ======
+            // ====== [8. 背景与氛围 (BACKGROUND)] ======
             // ============================================
             background: {
                 enabled: true,       // 是否开启背景漂浮物
@@ -522,7 +648,7 @@
                 style: 'mix',
 
                 // 背景粒子数量
-                countMobile: 40,     
+                countMobile: 40,      
                 countDesktop: 80,
 
                 // 漂浮速度 (越小越慢，营造太空感)
@@ -538,7 +664,7 @@
             },
 
             // ============================================
-            // ====== [6. 烟花系统配置 (FIREWORKS)] ======
+            // ====== [9. 烟花系统配置 (FIREWORKS)] ======
             // ============================================
             fireworks: {
                 // 上升速度 (数值越大越快)
@@ -616,7 +742,7 @@
             },
 
             // ============================================
-            // ====== [7. UI 与交互 (UI)] ======
+            // ====== [10. UI 与交互 (UI)] ======
             // ============================================
             ui: {
                 // 博客跳转链接
@@ -629,7 +755,7 @@
                 // 提示语文字
                 touchHintText: "戳戳屏幕有惊喜",
 
-                // [新增] 免责声明内容配置
+                // 免责声明内容配置
                 disclaimer: {
                     text: "本网页基于纯静态前端，不会收集您任何输入的东西（我哪有这闲钱买服务器这东西）",
                     color: "rgba(255, 255, 255, 0.4)",
@@ -643,17 +769,27 @@
                     maxConcurrent: 3   // 每次并发最多放几个?
                 },
 
-                // ==========================================================
-                // ====== [核心新增] 按钮位置自定义配置 (BUTTON POSITIONS) ======
-                // ==========================================================
-                // 说明：
-                // 1. 分为 'mobile' (手机) 和 'desktop' (电脑) 两套配置。
-                // 2. 支持 top, bottom, left, right 四个属性。
-                // 3. 如果不需要某个方向，请设为 null 或注释掉。
-                // 4. 单位可以是 '%' (百分比) 或 'px' (像素)。
-                // ==========================================================
+                // ====== 留言分享功能 (SHARE) ======
+                share: {
+                    // 自定义生成链接的基础域名 (不输入时默认生成的域名)
+                    baseUrl: "http://zh.maxtonniu.com/newyear", 
+                    
+                    // 必须与上方 urlConfig.paramName 保持一致，这里是自动跟随的
+                    get paramName() { return CONFIG.urlConfig.paramName; },
+                    
+                    // 弹窗标题
+                    modalTitle: "定制你的祝福链接",
+                    
+                    // 提示说明文字
+                    modalDesc: "生成专属链接发给Ta。<br>如果填写了“隐藏彩蛋”，告诉Ta：<br><b>快速转动圆环，会有惊喜哦！</b>",
+                    
+                    // 按钮文字
+                    btnText: "戳我留言"
+                },
+
+                // ====== 按钮位置自定义配置 (BUTTON POSITIONS) ======
                 positions: {
-                    // --- 1. 自动放烟花按钮 (Auto Fire Button) ---
+                    // --- 1. 自动烟花按钮 (Auto Fire Button) ---
                     autoBtn: {
                         mobile: {
                             bottom: '4%',      // 距离底部
@@ -671,7 +807,7 @@
                     blogBtn: {
                         mobile: {
                             bottom: '4%',
-                            right: '10%',       // 距离右侧
+                            right: '10%',        // 距离右侧
                             top: null, left: null
                         },
                         desktop: {
@@ -682,19 +818,29 @@
                     },
 
                     // --- 3. 音量控制按钮 (Volume Button) ---
-                    // 注意：音量滑块面板会自动跟随这个按钮
                     volumeBtn: {
                         mobile: {
                             bottom: '4%',
-                            left: '50%',       // 居中
-                            // 如果使用了百分比居中，通常需要配合 CSS transform translate，
-                            // 但这里我们通过 JS 简单处理：如果是 50%，我们手动修正一下 transform，
-                            // 或者你可以简单地不用 50%，而是用 padding 估算。
-                            // 为了方便，我们在下面的 JS 代码里加了 transform: translateX(-50%) 的处理逻辑。
+                            left: '50%',        // 居中
                             top: null, right: null
                         },
                         desktop: {
                             bottom: '4%',
+                            left: '50%',
+                            top: null, right: null
+                        }
+                    },
+                    
+                    // --- 4. 分享留言按钮 (Share Button) ---
+                    // 默认放置在音量按钮的上方 (Bottom 15% 左右)
+                    shareBtn: {
+                        mobile: {
+                            bottom: '10%',      // 比音量按钮(4%)高
+                            left: '50%',        // 居中
+                            top: null, right: null
+                        },
+                        desktop: {
+                            bottom: '10%',
                             left: '50%',
                             top: null, right: null
                         }
@@ -703,7 +849,7 @@
             },
 
             // ============================================
-            // ====== [8. 音频与音乐 (AUDIO)] ======
+            // ====== [11. 音频与音乐 (AUDIO)] ======
             // ============================================
             sound: {
                 enabled: false,       // 烟花音效总开关 (建议由滑块控制)
@@ -718,7 +864,7 @@
                 }
             },
 
-            // [新增] 背景音乐配置 (BGM)
+            // 背景音乐配置 (BGM)
             music: {
                 enabled: true,       // 背景音乐总开关
                 volume: 0.5,         // 背景音乐初始音量 (0 ~ 1)
@@ -730,11 +876,31 @@
                     '/audio/bgm/xiyuanqian.mp3',
                     '/audio/bgm/longjuanfeng.mp3'
                 ]
+            },
+
+            // ============================================
+            // ====== [12. 开场动画配置 (INTRO)] ======
+            // ============================================
+            intro: {
+                // 是否启用开场动画
+                enabled: true, 
+
+                // true = 无论多少次访问都显示; false = 第一次访问显示，之后刷新不显示
+                alwaysShow:false, 
+
+                // 开场显示的文字序列 (可自定义)
+                texts: ["建议开启声音<br>获得最佳体验", "Maxton 作品"],
+                
+                // 每个文字显示的停留时间 (毫秒)
+                duration: 2000, 
+                
+                // 淡入淡出的过渡时间 (毫秒)
+                fadeSpeed: 1000
             }
         };
         // ===============================================
 
-        // [新增] 初始化词汇逻辑：如果开启随机，则覆盖原有的 transitionTexts 和 carouselTexts
+        // [原有] 初始化词汇逻辑：如果开启随机，则覆盖原有的 transitionTexts 和 carouselTexts
         function initTextLogic() {
             if (CONFIG.textLogic.randomize && CONFIG.textLogic.pool.length > 0) {
                 // 1. 克隆并打乱大词库
@@ -761,8 +927,15 @@
         
         // 应用 UI 配置位置 (这里稍后在 resize 中调用)
         document.getElementById('touch-hint').innerText = CONFIG.ui.touchHintText;
+        
+        // 应用分享模块的文本配置
+        document.getElementById('btn-share').innerText = CONFIG.ui.share.btnText;
+        document.getElementById('share-title-text').innerText = CONFIG.ui.share.modalTitle;
+        document.getElementById('share-desc-text').innerHTML = CONFIG.ui.share.modalDesc; // 支持HTML换行
+        // [修改] 占位符不再全局统一，而是分开配置
+        // document.getElementById('share-input').placeholder = CONFIG.ui.share.placeholder; 
 
-        // [新增] 应用按钮自定义位置逻辑 (Apply Custom Button Positions)
+        // [原有] 应用按钮自定义位置逻辑 (Apply Custom Button Positions)
         function applyButtonPositions() {
             const posCfg = CONFIG.ui.positions;
             const mode = isMobile ? 'mobile' : 'desktop';
@@ -797,8 +970,11 @@
             
             // 2. 返回博客按钮
             setStyle('btn-blog', posCfg.blogBtn[mode]);
+            
+            // 3. 分享按钮
+            setStyle('btn-share', posCfg.shareBtn[mode]);
 
-            // 3. 音量容器 (注意：我们定位的是 .volume-container 类)
+            // 4. 音量容器 (注意：我们定位的是 .volume-container 类)
             // 因为 volume-container 是 class，这里手动获取
             const volContainer = document.querySelector('.volume-container');
             if (volContainer) {
@@ -818,7 +994,7 @@
             }
         }
 
-        // [新增] 应用免责声明内容
+        // [原有] 应用免责声明内容
         const disclaimerEl = document.getElementById('disclaimer');
         disclaimerEl.innerText = CONFIG.ui.disclaimer.text;
         disclaimerEl.style.color = CONFIG.ui.disclaimer.color;
@@ -827,24 +1003,48 @@
         let width, height, dpr;
         let particles = []; 
         let staticTopParticles = []; 
-        let carouselGroups = [];
+        
+        // [修改] 渲染队列分离：正常模式和隐藏模式
+        let carouselGroups = [];       // 默认显示的词
+        // [NEW] 不再使用 carouselGroups 存隐藏文字，而是使用缓存
+        let charParticleCache = {};    // 缓存字符的点阵数据 {'A': [particles...]}
+        let normalizedSecretText = ""; // 处理后首尾相接的无限长文本
+        let secretSlotCount = 0;       // 隐藏模式下的槽位数量
+        
         let renderQueue = [];
         
-        // [新增] 背景粒子数组
+        // 背景粒子数组
         let bgParticles = [];
         
-        // [新增] 烟花相关数组
+        // 烟花相关数组
         let fireworks = []; // 正在上升的火箭
         let sparks = [];    // 爆炸后的火花
-        // [新增] 尾烟数组
+        // 尾烟数组
         let smokeParticles = [];
 
         let isMobile = false;
         let baseParticleSize = 1.8; 
         let step = 0;
         let userName = "";
+        let secretMessageText = null; // 存储解压后的隐藏文字
         let isFinalState = false; 
         let globalRotation = 0;
+
+        // [新增] 渲染状态控制 (NORMAL -> REVEALING -> SECRET)
+        let renderState = 'NORMAL'; 
+
+        // 惯性拖拽相关状态变量
+        const dragState = {
+            isDragging: false,
+            startX: 0,
+            lastX: 0,
+            velocity: 0 // 当前额外的拖拽速度（不包含基础自转）
+        };
+        
+        // [新增] 用于速度补偿的变量
+        let normalRingRadius = 0;
+        let secretRingRadius = 0;
+        let hasSwitchedRadius = false; // 标记是否执行过速度补偿
 
         // 自动烟花相关
         let autoFireTimer = null;
@@ -856,6 +1056,106 @@
         // ===============================================
         // ====== [逻辑] 开场动画管理 ======
         // ===============================================
+        
+        // 辅助函数：显示输入框 UI 层
+        function showUILayer() {
+            const introLayer = document.getElementById('intro-layer');
+            const uiLayer = document.getElementById('ui-layer');
+            
+            // 淡出开场层
+            introLayer.style.opacity = 0;
+            setTimeout(() => {
+                introLayer.style.display = 'none'; // 彻底隐藏
+                uiLayer.style.display = 'block';   // 显示输入框层
+                setTimeout(() => { uiLayer.style.opacity = 1; }, 50); // UI 淡入
+            }, CONFIG.intro.fadeSpeed);
+        }
+
+        // URL 参数检查与逻辑处理
+        // URL 参数检查与逻辑处理
+        function checkUrlAndProceed() {
+            // 1. 如果没开启功能，直接显示默认引导语并进入
+            if (!CONFIG.urlConfig.enabled) {
+                secretMessageText = CONFIG.secret.defaultText;
+                showUILayer();
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const rawVal = urlParams.get(CONFIG.urlConfig.paramName);      // 名字参数
+            const rawMsgVal = urlParams.get(CONFIG.secret.paramNameMsg);   // 密语参数
+
+            // 2. 尝试解压名字
+            let decodedName = null;
+            if (rawVal) {
+                try {
+                    decodedName = LZString.decompressFromEncodedURIComponent(rawVal);
+                } catch (e) { console.error("Name decompress error", e); }
+            }
+
+            // 3. 尝试解压密语
+            let decodedMsg = null;
+            if (rawMsgVal) {
+                try {
+                    decodedMsg = LZString.decompressFromEncodedURIComponent(rawMsgVal);
+                } catch (e) { console.error("Msg decompress error", e); }
+            }
+
+            // ====== 核心判断逻辑 ======
+            
+            // 定义什么是“坏链接”：有参数，但是解压出来是空的
+            const isNameBad = (rawVal && !decodedName);
+            const isMsgBad = (rawMsgVal && !decodedMsg);
+
+            // 【分支一：链接有问题】
+            if (isNameBad || isMsgBad) {
+                
+                // A. 设置圆环文字为“错误提示” (达成圆环提示)
+                secretMessageText = CONFIG.secret.ringErrorText;
+
+                // B. 播放开场红色报错动画 (达成开场提示)
+                const introText = document.getElementById('intro-text');
+                const introLayer = document.getElementById('intro-layer');
+                
+                introText.style.opacity = 0;
+                
+                setTimeout(() => {
+                    // 显示配置里的 errorText (支持HTML换行)
+                    introText.innerHTML = CONFIG.urlConfig.errorText;
+                    introText.className = "breathing error-style"; 
+                    introText.style.opacity = 1;
+                    
+                    introLayer.style.opacity = 1; 
+                    introLayer.style.display = 'flex';
+
+                    // 动画播放完毕后，自动进入 UI 层
+                    setTimeout(() => {
+                        showUILayer();
+                    }, CONFIG.urlConfig.errorDuration);
+                }, 500);
+
+            } 
+            // 【分支二：链接正常 或者 根本没参数】
+            else {
+                // 自动填入名字
+                if (decodedName && CONFIG.urlConfig.autoFill) {
+                    document.getElementById('nameInput').value = decodedName;
+                }
+
+                // 决定圆环显示什么
+                if (decodedMsg) {
+                    // 1. 有隐藏信息 -> 显示隐藏信息
+                    secretMessageText = decodedMsg;
+                } else {
+                    // 2. 没隐藏信息 -> 显示默认引导语 ("想给TA留下什么话呢...")
+                    secretMessageText = CONFIG.secret.defaultText;
+                }
+
+                // 正常进入
+                showUILayer();
+            }
+        }
+ 
         function runIntroSequence() {
             const introLayer = document.getElementById('intro-layer');
             const introText = document.getElementById('intro-text');
@@ -864,11 +1164,9 @@
             // 1. 检查 LocalStorage 和配置
             const hasSeen = localStorage.getItem('hasSeenIntro_2026');
             
-            // 如果没开启，或者（不是强制一直显示 且 已经看过了），则跳过
+            // 如果没开启，或者（不是强制一直显示 且 已经看过了），则跳过动画直接检查参数
             if (!CONFIG.intro.enabled || (!CONFIG.intro.alwaysShow && hasSeen)) {
-                introLayer.style.display = 'none';
-                uiLayer.style.display = 'block';
-                setTimeout(() => { uiLayer.style.opacity = 1; }, 50); // 稍微延迟触发淡入
+                checkUrlAndProceed();
                 return;
             }
 
@@ -881,13 +1179,8 @@
 
             function showNextText() {
                 if (stepIndex >= texts.length) {
-                    // 动画结束
-                    introLayer.style.opacity = 0; // 大黑层淡出
-                    setTimeout(() => {
-                        introLayer.style.display = 'none'; // 彻底隐藏
-                        uiLayer.style.display = 'block';   // 显示输入框层
-                        setTimeout(() => { uiLayer.style.opacity = 1; }, 50); // UI 淡入
-                    }, CONFIG.intro.fadeSpeed);
+                    // 动画结束 -> 检查参数并决定后续
+                    checkUrlAndProceed();
                     return;
                 }
 
@@ -909,16 +1202,32 @@
             showNextText();
         }
         
-        // 页面加载完成后运行开场逻辑
-        window.addEventListener('load', runIntroSequence);
+        // ===============================================
+        // ====== [原有] 资源加载器 (字体 & 逻辑) ======
+        // ===============================================
+        async function loadGameResources() {
+            // 1. 加载字体（如果启用）
+            if (CONFIG.font.enabled && CONFIG.font.url) {
+                try {
+                    const customFont = new FontFace(CONFIG.font.family, `url(${CONFIG.font.url})`);
+                    await customFont.load();
+                    document.fonts.add(customFont);
+                    console.log("Custom font loaded:", CONFIG.font.family);
+                } catch (err) {
+                    console.warn("Font load failed, fallback to system font.", err);
+                }
+            }
+
+            // 2. 字体加载完毕后，再运行开场逻辑 (防止 measureText 测不准)
+            runIntroSequence();
+        }
+
+        // 页面加载完成后，先加载资源，再启动
+        window.addEventListener('load', loadGameResources);
 
         // ===============================================
-        // ====== [核心重写] 背景音乐管理器 (Web Audio API) ======
+        // ====== [原有] 背景音乐管理器 (Web Audio API) ======
         // ===============================================
-        // [修改说明] 
-        // 为了解决 iOS 无法调节 <audio> 音量的问题，此处完全重写了 bgmManager。
-        // 现在使用 AudioContext + GainNode (增益节点) 来实现音量控制。
-        // BGM 和 SFX 的音量是完全独立的，分别由 CONFIG.music.volume 和 CONFIG.sound.volume 控制。
         const bgmManager = {
             ctx: null,
             gainNode: null, // 音量控制节点
@@ -954,7 +1263,6 @@
                     .then(decodedBuffer => {
                         this.buffer = decodedBuffer;
                         this.isLoaded = true;
-                        // 如果之前尝试过播放但未加载完，这里可以自动播放(可选)，暂不自动，等待交互
                     })
                     .catch(e => console.error("BGM Load Error:", e));
             },
@@ -997,7 +1305,7 @@
         bgmManager.init();
 
         // ===============================================
-        // ====== [核心新增] 音效管理器 SoundManager ======
+        // ====== [原有] 音效管理器 SoundManager ======
         // ===============================================
         const soundManager = {
             ctx: null,
@@ -1044,12 +1352,9 @@
             },
 
             // 播放音效核心逻辑
-            // type: 'lift', 'burst', 'burstSmall', 'crackle'
-            // scale: 0.0 ~ 1.0 (影响音调和音量，烟花越小声音越尖越小)
             playSound(type, scale = 1) {
                 // 如果开关没开，或者音量为0，就不播
                 if (!CONFIG.sound.enabled && CONFIG.sound.volume <= 0.01) return;
-                // 或者显式检查 enabled
                 if (!CONFIG.sound.enabled && document.getElementById('sfx-slider').value <= 0) return;
 
                 if (!this.ctx) return;
@@ -1059,7 +1364,6 @@
                 if (!bufferList || bufferList.length === 0) return;
 
                 // 防爆音节流 (仅针对小炸裂声)
-                // 防止文字烟花同时产生太多声音导致破音或卡顿
                 if (type === 'burstSmall') {
                     const now = Date.now();
                     if (now - this.lastSmallBurstTime < 50) return; // 50ms 冷却
@@ -1077,16 +1381,7 @@
                 const gainNode = this.ctx.createGain();
 
                 // 物理模拟计算
-                // scale 越小(小烟花) -> playbackRate 越大(声音尖), volume 越小
-                // scale 越大(大烟花) -> playbackRate 越小(声音沉), volume 越大
-                // 假设 scale 输入范围约为 0.5 ~ 1.5 之间
-                
-                // 播放速度：基准 1.0。小烟花加速，大烟花减速。
-                // 算法：1.2 - scale * 0.2 (scale=1时是1.0，scale=0.5时是1.1)
-                // 这里做一个更明显的映射
                 let rate = 1.0;
-                
-                // [修改] 使用 CONFIG.sound.volume 作为基准音量
                 let volume = CONFIG.sound.volume;
 
                 if (type === 'burst' || type === 'burstSmall') {
@@ -1114,7 +1409,7 @@
         // 立即初始化音频系统
         soundManager.init();
 
-        // [新增] 初始化背景粒子 (支持多种形状和旋转)
+        // [原有] 初始化背景粒子 (支持多种形状和旋转)
         function initBackground() {
             if (!CONFIG.background.enabled) return;
             bgParticles = [];
@@ -1125,9 +1420,9 @@
                 let shapeType = 'circle';
                 if (CONFIG.background.style === 'mix') {
                     const r = Math.random();
-                    if (r < 0.4) shapeType = 'circle';      // 40% 实心圆
-                    else if (r < 0.7) shapeType = 'ring';   // 30% 空心圈
-                    else shapeType = 'cross';               // 30% 十字星
+                    if (r < 0.4) shapeType = 'circle';        // 40% 实心圆
+                    else if (r < 0.7) shapeType = 'ring';     // 30% 空心圈
+                    else shapeType = 'cross';                 // 30% 十字星
                 } else {
                     shapeType = CONFIG.background.style;
                 }
@@ -1148,7 +1443,7 @@
             }
         }
 
-        // [新增] 更新并绘制背景 (支持样式绘制)
+        // [原有] 更新并绘制背景 (支持样式绘制)
         function updateAndDrawBackground() {
             if (!CONFIG.background.enabled) return;
             
@@ -1163,7 +1458,6 @@
                 p.rotation += p.rotSpeed; // 自转
                 
                 // 边界循环 (出去了从另一边回来)
-                // 稍微留点余量(50px)防止刚好在边缘闪烁
                 if (p.x < -50) p.x = width + 50;
                 if (p.x > width + 50) p.x = -50;
                 if (p.y < -50) p.y = height + 50;
@@ -1211,10 +1505,10 @@
             isMobile = width < 768;
             baseParticleSize = isMobile ? 1.6 : 2.0;
 
-            // [新增] 动态应用按钮位置 (替换原有的 Gap 逻辑)
+            // [原有] 动态应用按钮位置
             applyButtonPositions();
 
-            // [新增] 每次调整窗口大小时重置背景
+            // [原有] 每次调整窗口大小时重置背景
             initBackground();
         }
         window.addEventListener('resize', resize);
@@ -1308,17 +1602,24 @@
         }
 
         // 修改核心：支持小数步长 (Density Control Logic Upgrade)
+        // [修改] 增加 font 逻辑
         function sampleText(text, targetFontSize, colorType = 'gold', stepOverride = null) {
             const tmpCanvas = document.createElement('canvas');
             const tCtx = tmpCanvas.getContext('2d');
-            tCtx.font = `bold ${targetFontSize}px "Microsoft YaHei", sans-serif`;
+            
+            // [新增] 字体动态判断
+            const fontFamily = (CONFIG.font.enabled && CONFIG.font.family) 
+                            ? CONFIG.font.family 
+                            : '"Microsoft YaHei", sans-serif';
+
+            tCtx.font = `bold ${targetFontSize}px ${fontFamily}`;
             const measure = tCtx.measureText(text);
             let finalSize = targetFontSize;
             const maxW = width * 0.9; 
             if (measure.width > maxW) finalSize = targetFontSize * (maxW / measure.width);
             tmpCanvas.width = width;
             tmpCanvas.height = height;
-            tCtx.font = `bold ${finalSize}px "Microsoft YaHei", sans-serif`;
+            tCtx.font = `bold ${finalSize}px ${fontFamily}`;
             tCtx.fillStyle = "white";
             tCtx.textAlign = "center";
             tCtx.textBaseline = "middle";
@@ -1353,13 +1654,17 @@
             return points;
         }
 
-        // [移植修改] 新增：高效的文字点阵获取函数 (源自 MyMath.literalLattice)
+        // [原有] 新增：高效的文字点阵获取函数 (源自 MyMath.literalLattice)
         // 专门用于烟花文字，性能比 sampleText 更好，且只生成文字区域的点
         function getTextLattice(text, fontSize) {
             // 创建一个临时的离屏 canvas
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
-            const fontFamily = '"Microsoft YaHei", sans-serif';
+            
+            // [新增] 字体动态判断
+            const fontFamily = (CONFIG.font.enabled && CONFIG.font.family) 
+                            ? CONFIG.font.family 
+                            : '"Microsoft YaHei", sans-serif';
 
             // 1. 先设置字体来测量宽度
             ctx.font = `bold ${fontSize}px ${fontFamily}`;
@@ -1408,15 +1713,22 @@
 
         function createFinalStage() {
             isFinalState = true;
-            particles = []; staticTopParticles = []; carouselGroups = [];
+            // 清空现有的
+            particles = []; staticTopParticles = []; carouselGroups = []; 
+            // 清空缓存相关
+            charParticleCache = {}; 
+            normalizedSecretText = "";
 
-            // [修改] 只显示原本被隐藏的按钮，音量按钮一直都在
+            // [修改] 只显示原本被隐藏的按钮，但排除分享按钮(稍后交互后再显示)
             const hiddenBtns = document.querySelectorAll('.initially-hidden');
             hiddenBtns.forEach(btn => {
-                btn.classList.add('reveal-btn');
+                // [逻辑调整] 如果是分享按钮，先不显示；其他的立即显示
+                if (btn.id !== 'btn-share') {
+                    btn.classList.add('reveal-btn');
+                }
             });
             
-            // [新增] 显示戳戳屏幕提示
+            // [原有] 显示戳戳屏幕提示
             if (!hasTouchedInFinal) {
                 document.getElementById('touch-hint').style.opacity = 1;
             }
@@ -1451,14 +1763,20 @@
                 staticTopParticles.push(part);
             });
 
+            // ====== 1. 生成正常模式圆环 (Normal Ring) ======
             let carouselSize = isMobile ? CONFIG.fontSizes.carouselMobile : CONFIG.fontSizes.carouselDesktop;
             let list = CONFIG.carouselTexts;
+            
+            // 记录正常圆环的半径，用于后续计算速度补偿
+            // 正常圆环半径是基于配置的比例
+            normalRingRadius = isMobile ? width * CONFIG.carouselRadiusRatioMobile : width * CONFIG.carouselRadiusRatioDesktop;
+
             let angleStep = (Math.PI * 2) / list.length;
             
             list.forEach((text, index) => {
                 const points = sampleText(text, carouselSize, 'rainbow', finalStep);
                 let group = {
-                    baseAngle: index * angleStep,
+                    baseAngle: -index * angleStep,
                     parts: []
                 };
                 points.forEach(p => {
@@ -1472,6 +1790,46 @@
                 });
                 carouselGroups.push(group);
             });
+
+            // ====== 2. 预处理隐藏模式圆环数据 (Secret Ring) - 虚拟卷轴逻辑 ======
+            if (secretMessageText) {
+                // 读取配置
+                const secretSize = isMobile ? CONFIG.secret.font.sizeMobile : CONFIG.secret.font.sizeDesktop;
+                
+                // 确定槽位数量（圆环一圈显示的字数）
+                secretSlotCount = isMobile ? CONFIG.secret.ring.slotsMobile : CONFIG.secret.ring.slotsDesktop;
+                
+                // 确定物理半径
+                const radiusRatio = isMobile ? CONFIG.secret.ring.radiusMobile : CONFIG.secret.ring.radiusDesktop;
+                secretRingRadius = width * radiusRatio;
+
+                // 标准化文本：如果字数少于槽位数，则重复拼接，直到填满一圈
+                normalizedSecretText = secretMessageText;
+                while (normalizedSecretText.length < secretSlotCount) {
+                    normalizedSecretText += secretMessageText;
+                }
+
+                // 缓存字符粒子数据
+                // 遍历每一个唯一字符，生成点阵数据存入缓存
+                for (let char of normalizedSecretText) {
+                    if (!charParticleCache[char]) {
+                        const lattice = getTextLattice(char, secretSize);
+                        const centerX = lattice.width / 2;
+                        const centerY = lattice.height / 2;
+                        
+                        const charParticles = [];
+                        lattice.points.forEach(p => {
+                            let part = new Particle(width/2, height + 200); // 初始位置无关紧要，渲染时会重算
+                            // 计算相对于文字中心的偏移
+                            part.relX = -(p.x - centerX); 
+                            part.relY = p.y - centerY;
+                            part.color = getRandomColor('rainbow');
+                            charParticles.push(part);
+                        });
+                        charParticleCache[char] = charParticles;
+                    }
+                }
+            }
         }
 
         function updateMainText(text) {
@@ -1509,10 +1867,10 @@
             const input = document.getElementById('nameInput');
             if (!input.value) return;
             
-            // [新增] 用户交互触发音频解锁 (iOS/Chrome 策略要求)
+            // [原有] 用户交互触发音频解锁 (iOS/Chrome 策略要求)
             soundManager.resume();
             
-            // [新增] 开始播放背景音乐
+            // [原有] 开始播放背景音乐
             bgmManager.play();
 
             userName = input.value;
@@ -1522,8 +1880,16 @@
                 document.getElementById('hint').style.opacity = 1;
             }, 500);
             updateMainText(userName);
-            window.addEventListener('mousedown', handleClick);
-            window.addEventListener('touchstart', handleClick, {passive: false});
+            
+            // [交互] 绑定点击和拖拽事件
+            window.addEventListener('mousedown', handleDragStart);
+            window.addEventListener('mousemove', handleDragMove);
+            window.addEventListener('mouseup', handleDragEnd);
+
+            window.addEventListener('touchstart', handleDragStart, {passive: false});
+            window.addEventListener('touchmove', handleDragMove, {passive: false});
+            window.addEventListener('touchend', handleDragEnd);
+
             animate();
         }
 
@@ -1539,10 +1905,10 @@
         }
 
         // ===============================================
-        // ====== [新增功能] 烟花逻辑 (Fireworks Logic) ======
+        // ====== [原有] 烟花逻辑 (Fireworks Logic) ======
         // ===============================================
 
-        // [新增] 创建尾烟粒子
+        // [原有] 创建尾烟粒子
         function createSmoke(x, y) {
             if (!CONFIG.fireworks.smoke.enabled) return;
             
@@ -1558,7 +1924,7 @@
             });
         }
 
-        // [新增] 更新并绘制尾烟
+        // [原有] 更新并绘制尾烟
         function updateAndDrawSmoke() {
             if (!CONFIG.fireworks.smoke.enabled) return;
 
@@ -1584,7 +1950,7 @@
         }
 
         function launchFirework(targetX, targetY) {
-            // [新增] 触发发射音效 (lift)
+            // [原有] 触发发射音效 (lift)
             soundManager.playSound('lift', 1);
 
             // 发射一个“火箭”
@@ -1615,7 +1981,7 @@
             const count = isMobile ? CONFIG.fireworks.explosionCountMobile : CONFIG.fireworks.explosionCountDesktop;
             const scaleMul = isMobile ? CONFIG.fireworks.patterns.scaleMobile : CONFIG.fireworks.patterns.scaleDesktop;
             
-            // [新增] 触发普通爆炸音效 (burst)
+            // [原有] 触发普通爆炸音效 (burst)
             // 根据 scaleMul 调整音调。scaleMul 越大，scale 越大，声音越低沉。
             // 这里将 scaleMul 归一化到 0.8~1.2 左右传给 playSound
             soundManager.playSound('burst', isMobile ? scaleMul / 1.5 : scaleMul / 2.0);
@@ -1665,7 +2031,7 @@
 
         // [修改] 文字爆炸逻辑 - 升级版：由中心向外炸开 (使用移植的 getTextLattice 算法)
         function createWordExplosion(cx, cy) {
-            // [新增] 触发文字烟花音效 (burstSmall)
+            // [原有] 触发文字烟花音效 (burstSmall)
             // 文字烟花通常密集，使用节流的 burstSmall
             soundManager.playSound('burstSmall', 1.0);
 
@@ -1721,7 +2087,7 @@
         }
 
         function updateAndDrawFireworks() {
-            // [新增] 先画尾烟，让它在火花下面
+            // [原有] 先画尾烟，让它在火花下面
             updateAndDrawSmoke();
 
             // 1. 更新上升的烟花
@@ -1729,13 +2095,13 @@
                 let fw = fireworks[i];
                 fw.y -= fw.speed;
                 
-                // [新增] 计算飞行抖动 (S型上升)
+                // [原有] 计算飞行抖动 (S型上升)
                 fw.wobblePhase += 0.15; // 抖动频率
                 const wobbleOffset = Math.sin(fw.wobblePhase) * CONFIG.fireworks.ascentWobble;
                 const currentX = fw.baseX + wobbleOffset;
                 fw.x = currentX;
 
-                // [新增] 生成尾烟
+                // [原有] 生成尾烟
                 fw.tick++;
                 if (fw.tick % CONFIG.fireworks.smoke.interval === 0) {
                     createSmoke(currentX, fw.y + 10); // 在火箭尾部生成
@@ -1792,7 +2158,7 @@
         }
 
         // ===============================================
-        // ====== [新增功能] UI 交互逻辑 ======
+        // ====== [原有] UI 交互逻辑 ======
         // ===============================================
 
         function toggleAutoFire() {
@@ -1816,7 +2182,7 @@
             autoFireTimer = setTimeout(() => {
                 if (!isAutoFiring) return;
                 
-                // [新增] 支持并发 (一次放好几个)
+                // [原有] 支持并发 (一次放好几个)
                 const burstCount = Math.floor(Math.random() * CONFIG.ui.autoFire.maxConcurrent) + 1;
                 
                 for(let k=0; k<burstCount; k++) {
@@ -1837,7 +2203,7 @@
             window.location.href = CONFIG.ui.blogUrl;
         }
 
-        // [修改] 音量 UI 交互函数 - 控制竖向面板显示
+        // [原有] 音量 UI 交互函数 - 控制竖向面板显示
         function toggleVolumePanel() {
             const panel = document.getElementById('volume-panel-vertical');
             panel.classList.toggle('show');
@@ -1855,48 +2221,183 @@
         }
 
         // ===============================================
+        // ====== [逻辑] 留言分享相关逻辑 (SHARE LOGIC) - 升级版 ======
+        // ===============================================
+        function openShareModal() {
+            const overlay = document.getElementById('share-overlay');
+            overlay.classList.add('show');
+            
+            // 清空之前的输入和结果
+            document.getElementById('share-name-input').value = "";
+            document.getElementById('share-msg-input').value = "";
+            document.getElementById('share-link-output').value = "";
+            document.getElementById('share-result').style.display = 'none';
+        }
 
-        let isAnimating = false;
-        function handleClick(e) {
-            // [新增] 交互时尝试解锁 AudioContext
+        function closeShareModal() {
+            document.getElementById('share-overlay').classList.remove('show');
+        }
+
+        function generateShareLink() {
+            const nameVal = document.getElementById('share-name-input').value.trim();
+            const msgVal = document.getElementById('share-msg-input').value.trim();
+            
+            const baseUrl = CONFIG.ui.share.baseUrl;
+            const paramNameA = CONFIG.ui.share.paramName;
+            const paramNameM = CONFIG.secret.paramNameMsg;
+            
+            // 检查 LZString 是否加载
+            if (typeof LZString === 'undefined') {
+                alert("资源库加载中，请稍后再试...");
+                return;
+            }
+
+            let params = [];
+
+            // 1. 压缩名字
+            if (nameVal) {
+                try {
+                    const compressedName = LZString.compressToEncodedURIComponent(nameVal);
+                    params.push(`${paramNameA}=${compressedName}`);
+                } catch (e) { console.error("Name Compression Failed", e); }
+            }
+
+            // 2. 压缩密语
+            if (msgVal) {
+                try {
+                    const compressedMsg = LZString.compressToEncodedURIComponent(msgVal);
+                    params.push(`${paramNameM}=${compressedMsg}`);
+                } catch (e) { console.error("Msg Compression Failed", e); }
+            }
+
+            // 3. 拼接链接
+            let finalLink = baseUrl;
+            if (params.length > 0) {
+                const separator = baseUrl.includes('?') ? '&' : '?';
+                finalLink = `${baseUrl}${separator}${params.join('&')}`;
+            }
+
+            // 显示结果到文本框
+            const outputEl = document.getElementById('share-link-output');
+            outputEl.value = finalLink;
+            document.getElementById('share-result').style.display = 'block';
+            
+            // 自动全选文本，方便复制
+            outputEl.select();
+            outputEl.setSelectionRange(0, 99999); // 兼容移动端
+        }
+
+        // ===============================================
+        // ====== [原有] 惯性拖拽与点击逻辑 (Interactive) ======
+        // ===============================================
+        
+        // 统一获取 X 坐标
+        function getClientX(e) {
+            return e.touches ? e.touches[0].clientX : e.clientX;
+        }
+
+        // 获取 Y 坐标 (用于误触判断)
+        function getClientY(e) {
+            return e.touches ? e.touches[0].clientY : e.clientY;
+        }
+
+        function handleDragStart(e) {
+            // 排除UI元素的点击 (包括新的弹窗相关)
+            if (e.target.tagName === 'BUTTON' || 
+                e.target.tagName === 'INPUT' || 
+                e.target.tagName === 'TEXTAREA' ||
+                e.target.closest('.volume-container') || 
+                e.target.closest('#share-overlay')) return;
+
+            // [原有] 交互时尝试解锁 AudioContext
             soundManager.resume();
-            // [新增] 同时尝试解锁 BGM 的 Context (两个 Context 互不影响)
             bgmManager.resume();
 
-            // 排除点击到底部按钮和音量控件的情况
-            // 使用 closest 检查点击是否发生在 button 或 .volume-container 内部
-            if (e.target.tagName === 'BUTTON' || e.target.closest('.volume-container') || e.target.tagName === 'INPUT') return;
-            
-            if (e.type === 'touchstart') e.preventDefault();
-            
-            let clientX, clientY;
+            // 如果是 Touch 事件，防止滚动
             if (e.type === 'touchstart') {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+                 // 不阻止默认行为，可能会导致页面滚动，但在全屏 canvas 上通常需要 preventDefault
+                 // 不过为了兼容性，这里稍微宽容一点，只在 move 时阻止
             }
 
-            // [新增] 底部误触保护逻辑
-            // 如果点击位置距离底部太近，直接忽略（不放烟花，也不切换场景）
-            // 这样用户在点按钮手抖点偏时，不会误触发烟花
+            const clientY = getClientY(e);
             const safeZone = isMobile ? CONFIG.ui.safeZoneHeightMobile : CONFIG.ui.safeZoneHeightDesktop;
-            if (height - clientY < safeZone) {
-                return; 
+            
+            // 如果点击在底部安全区内，直接忽略（不放烟花，不拖拽）
+            if (height - clientY < safeZone) return;
+
+            // 1. 如果是 Final 阶段，优先处理拖拽
+            if (isFinalState) {
+                dragState.isDragging = true;
+                dragState.startX = getClientX(e);
+                dragState.lastX = dragState.startX;
+                dragState.velocity = 0; // 重置速度
             }
             
-            // [新增] 如果是最终状态，点击就是放烟花
-            if (isFinalState) {
-                // 第一次点击后，隐藏提示语
-                if (!hasTouchedInFinal) {
-                    hasTouchedInFinal = true;
-                    document.getElementById('touch-hint').style.opacity = 0;
-                }
-                launchFirework(clientX, clientY);
-                return; // 这里的 return 很重要，阻止触发后面的场景切换逻辑
+            // 2. 如果不是 Final 阶段，或者单纯点击，记录点击逻辑交给 handleClick (这里实际上可以合并)
+            if (!isFinalState) {
+                handleClickLogic(e);
             }
+        }
 
+        function handleDragMove(e) {
+            if (!dragState.isDragging || !isFinalState) return;
+            e.preventDefault(); // 防止拖拽时页面滚动
+
+            const x = getClientX(e);
+            const delta = x - dragState.lastX;
+            dragState.lastX = x;
+
+            // 计算拖拽产生的速度 = 移动距离 * 灵敏度
+            // 注意：因为原本 logic 是 globalRotation -= speed，这里 delta > 0 (向右拖) 应该让 rotation 变小还是变大？
+            // 试一下：向右拖希望物体向右转 -> 顺时针 -> 角度减小？
+            // 通常 Canvas 3D 计算：x3d = p.relX * cosA + radius * sinA
+            // 调整符合直觉即可。这里设定：向右拖，物体跟着向右转。
+            
+            dragState.velocity = delta * CONFIG.interaction.inertia.dragSensitivity;
+        }
+
+        function handleDragEnd(e) {
+            if (isFinalState && dragState.isDragging) {
+                dragState.isDragging = false;
+                
+                // 判断是否是“点击”而非“拖拽”
+                // 如果移动距离很小，视为点击 -> 放烟花
+                const totalDist = Math.abs(dragState.lastX - dragState.startX);
+                if (totalDist < 10) {
+                      // 视为点击，放烟花
+                      // 需要获取结束时的坐标，touchEnd 没有 touches，changedTouches 有
+                      let clientX, clientY;
+                      if (e.changedTouches) {
+                          clientX = e.changedTouches[0].clientX;
+                          clientY = e.changedTouches[0].clientY;
+                      } else {
+                          clientX = e.clientX;
+                          clientY = e.clientY;
+                      }
+                      
+                      // 第一次点击隐藏提示
+                      if (!hasTouchedInFinal) {
+                        hasTouchedInFinal = true;
+                        document.getElementById('touch-hint').style.opacity = 0;
+
+                        // 【修复逻辑】仅当没有隐藏彩蛋时，才立即显示分享按钮
+                        // 如果有彩蛋，按钮会在 animate 函数中检测到解锁成功后显示
+                        if (!secretMessageText) {
+                            setTimeout(() => {
+                                const shareBtn = document.getElementById('btn-share');
+                                if (shareBtn) shareBtn.classList.add('reveal-btn');
+                            }, 500); 
+                        }
+                    }
+                    launchFirework(clientX, clientY);
+                }
+            }
+            dragState.isDragging = false;
+        }
+
+        // 原有点击逻辑的封装 (用于非 Final 阶段的场景切换)
+        let isAnimating = false;
+        function handleClickLogic(e) {
             if (isAnimating) return;
             isAnimating = true; step++;
             document.getElementById('hint').style.opacity = 0;
@@ -1913,11 +2414,11 @@
         function animate() {
             ctx.clearRect(0, 0, width, height);
             
-            // [新增] 在清空画布后、绘制主要文字前，先画背景
+            // [原有] 在清空画布后、绘制主要文字前，先画背景
             // 这样背景永远在最后面，不会遮挡文字
             updateAndDrawBackground();
 
-            // [新增] 绘制烟花（建议放在背景之上，文字之下，或者文字之上都可以）
+            // [原有] 绘制烟花（建议放在背景之上，文字之下，或者文字之上都可以）
             // 这里放在文字层下面一点点，或者用 lighter 混合模式让它更亮
             ctx.globalCompositeOperation = 'lighter';
             updateAndDrawFireworks();
@@ -1934,9 +2435,103 @@
                     p.draw(1); 
                 });
 
-                globalRotation -= CONFIG.rotationSpeed;
+                // --- 核心修改：惯性物理逻辑 ---
+                let currentAbsSpeed = 0;
                 
-                const radius = isMobile ? width * CONFIG.carouselRadiusRatioMobile : width * CONFIG.carouselRadiusRatioDesktop;
+                if (dragState.isDragging) {
+                    // 1. 拖拽中：直接应用拖拽速度，并覆盖基础自转
+                    // 这里为了手感，反向应用，因为 globalRotation 是 -=
+                    globalRotation -= dragState.velocity;
+                    currentAbsSpeed = Math.abs(dragState.velocity);
+                } else {
+                    // 2. 松手后：惯性 + 恢复
+
+                    // A. 应用摩擦力衰减
+                    dragState.velocity *= CONFIG.interaction.inertia.friction;
+
+                    // B. 速度归零判定
+                    if (Math.abs(dragState.velocity) < 0.0001) {
+                          dragState.velocity = 0;
+                    }
+
+                    // C. 应用旋转
+                    globalRotation += CONFIG.rotationSpeed; 
+                    globalRotation -= dragState.velocity; 
+
+                    // D. 计算当前绝对速度
+                    currentAbsSpeed = Math.abs(CONFIG.rotationSpeed - dragState.velocity);
+                }
+                
+                // ============================================
+                // ====== [逻辑修复] 秘密切换逻辑 (Switch Logic) ======
+                // ============================================
+                const touchHintEl = document.getElementById('touch-hint');
+                const switchThreshold = CONFIG.secret.thresholds.switch;
+                const hintThreshold = CONFIG.secret.thresholds.hint;
+                const stopThreshold = CONFIG.secret.thresholds.stop;
+
+                if (secretMessageText) {
+                    // 1. 检测是否触发切换 (速度极快 + 存在密语 + 当前是 NORMAL 状态)
+                    if (renderState === 'NORMAL' && currentAbsSpeed > switchThreshold) {
+                        // 切换到“揭晓中”状态
+                        renderState = 'REVEALING';
+                        
+                        // [新增] 速度补偿：缩小角速度，保持线速度恒定
+                        // 这样大圆环出现时就不会突然转得飞快
+                        if (!hasSwitchedRadius && secretRingRadius > 0 && normalRingRadius > 0) {
+                            const ratio = normalRingRadius / secretRingRadius;
+                            dragState.velocity *= ratio; // 补偿拖拽惯性
+                            // 标记已补偿，防止重复计算
+                            hasSwitchedRadius = true;
+                        }
+
+                        // 显示提示：不用转了
+                        if (hasTouchedInFinal) { 
+                            touchHintEl.innerText = CONFIG.secret.hints.slowDown;
+                            touchHintEl.style.opacity = 1;
+                        }
+                    } 
+                    // 2. 揭晓中状态：等待速度降下来
+                    else if (renderState === 'REVEALING') {
+                        // 如果速度已经很慢了（接近正常自转速度），则正式切换为 SECRET
+                        if (currentAbsSpeed < stopThreshold * 3) {
+                            renderState = 'SECRET';
+                            
+                            // 隐藏提示
+                            touchHintEl.style.opacity = 0;
+                            
+                            // 延迟一点显示分享按钮 (如果还没显示的话)
+                            const shareBtn = document.getElementById('btn-share');
+                            if (shareBtn && !shareBtn.classList.contains('reveal-btn')) {
+                                setTimeout(() => shareBtn.classList.add('reveal-btn'), 500);
+                            }
+                        }
+                    }
+                    // 3. 正常状态下的提示逻辑 (还未触发极速)
+                    else if (renderState === 'NORMAL' && hasTouchedInFinal) {
+                        if (currentAbsSpeed > hintThreshold) {
+                            touchHintEl.innerText = CONFIG.secret.hints.faster;
+                            touchHintEl.style.opacity = 1;
+                        } else {
+                            touchHintEl.innerText = CONFIG.secret.hints.start;
+                            touchHintEl.style.opacity = 1;
+                        }
+                    }
+                }
+
+                // ============================================
+
+                // [修改] 根据当前显示的是普通圆环还是巨型圆环，决定半径
+                // 只有完全进入 REVEALING 或 SECRET 状态，且确实有隐藏词组，才使用巨型半径
+                const shouldUseSecretRadius = (renderState !== 'NORMAL' && normalizedSecretText.length > 0);
+                
+                let currentRadius = 0;
+                if (shouldUseSecretRadius) {
+                    currentRadius = secretRingRadius;
+                } else {
+                    currentRadius = isMobile ? width * CONFIG.carouselRadiusRatioMobile : width * CONFIG.carouselRadiusRatioDesktop;
+                }
+                
                 const targetCenterRatio = isMobile ? CONFIG.centerYMobile : CONFIG.centerYDesktop;
                 const centerY = height * targetCenterRatio; 
                 const fov = isMobile ? CONFIG.fovMobile : CONFIG.fovDesktop;
@@ -1944,39 +2539,106 @@
 
                 renderQueue = [];
 
-                carouselGroups.forEach(group => {
-                    const angle = group.baseAngle + globalRotation;
-                    const cosA = Math.cos(angle);
-                    const sinA = Math.sin(angle);
+                if (shouldUseSecretRadius) {
+                    // ====== 虚拟卷轴渲染逻辑 (Virtual Scroll Logic) ======
+                    // 1. 计算每个槽位的角度步长
+                    const slotAngleStep = (Math.PI * 2) / secretSlotCount;
+                    
+                    // 2. 计算当前滚动的偏移量 (将 globalRotation 转换为槽位索引偏移)
+                    // globalRotation 是连续的弧度。我们需要知道它转过了多少个 slotAngleStep。
+                    // 注意方向：globalRotation 增加代表逆时针旋转。
+                    
+                    // 计算总偏移角度 (归一化到 0 ~ 2PI 之外也行，反正我们取模)
+                    // 使用 floor 确保平滑过渡，保留小数部分做微调
+                    const totalOffsetSteps = globalRotation / slotAngleStep;
+                    
+                    const indexShift = Math.floor(totalOffsetSteps);
+                    const fineTuneAngle = (totalOffsetSteps - indexShift) * slotAngleStep;
 
-                    group.parts.forEach(p => {
-                        p.update(); 
-                        const x3d = p.relX * cosA + radius * sinA;
-                        const z3d = -p.relX * sinA + radius * cosA;
-                        const scale = fov / (fov + z3d);
-                        const screenX = width / 2 + x3d * scale;
-                        const screenY = centerY + (p.relY * scale) - (z3d * tiltFactor * scale);
+                    // 3. 遍历每一个物理槽位 (0 到 N-1)
+                    for (let i = 0; i < secretSlotCount; i++) {
+                        // 计算该槽位当前应该显示的字符索引
+                        // 注意处理负数取模的问题
+                        let charIndex = (indexShift - i) % normalizedSecretText.length;
+                        if (charIndex < 0) charIndex += normalizedSecretText.length;
                         
-                        let progress = (radius * 1.1 - z3d) / (2 * radius * 1.1);
-                        progress = Math.max(0, Math.min(1, progress));
-                        let alpha = Math.pow(progress, 3.5); 
+                        const char = normalizedSecretText[charIndex];
+                        const particles = charParticleCache[char]; // 从缓存取点阵
 
-                        if (scale > 0.1 && alpha > 0.005) {
-                             renderQueue.push({
-                                 particle: p,
-                                 scale: scale,
-                                 x: screenX,
-                                 y: screenY,
-                                 alpha: alpha,
-                                 z: z3d
-                             });
+                        if (particles) {
+                            // 计算该槽位的物理基础角度
+                            // 注意：加上 fineTuneAngle 是为了让字在槽位之间平滑滑动
+                            const angle = i * slotAngleStep + fineTuneAngle;
+                            
+                            const cosA = Math.cos(angle);
+                            const sinA = Math.sin(angle);
+
+                            particles.forEach(p => {
+                                p.update(); 
+                                
+                                // 3D 投影逻辑 (Standard Cylinder Projection)
+                                const x3d = p.relX * cosA + currentRadius * sinA;
+                                const z3d = -p.relX * sinA + currentRadius * cosA;
+                                const scale = fov / (fov + z3d);
+                                const screenX = width / 2 + x3d * scale;
+                                const screenY = centerY + (p.relY * scale) - (z3d * tiltFactor * scale);
+                                
+                                // Alpha 渐变逻辑 - 引入 fadePower
+                                let progress = (currentRadius * 1.1 - z3d) / (2 * currentRadius * 1.1);
+                                progress = Math.max(0, Math.min(1, progress));
+                                let alpha = Math.pow(progress, CONFIG.secret.fadePower); 
+
+                                if (scale > 0.1 && alpha > 0.005) {
+                                     renderQueue.push({
+                                         particle: p,
+                                         scale: scale,
+                                         x: screenX,
+                                         y: screenY,
+                                         alpha: alpha,
+                                         z: z3d
+                                     });
+                                }
+                            });
                         }
+                    }
+
+                } else {
+                    // ====== 原有的固定圆环渲染逻辑 (Normal Ring Logic) ======
+                    carouselGroups.forEach(group => {
+                        const angle = group.baseAngle + globalRotation;
+                        const cosA = Math.cos(angle);
+                        const sinA = Math.sin(angle);
+
+                        group.parts.forEach(p => {
+                            p.update(); 
+                            
+                            // 核心 3D 投影逻辑
+                            const x3d = p.relX * cosA + currentRadius * sinA;
+                            const z3d = -p.relX * sinA + currentRadius * cosA;
+                            const scale = fov / (fov + z3d);
+                            const screenX = width / 2 + x3d * scale;
+                            const screenY = centerY + (p.relY * scale) - (z3d * tiltFactor * scale);
+                            
+                            // Alpha 渐变逻辑
+                            let progress = (currentRadius * 1.1 - z3d) / (2 * currentRadius * 1.1);
+                            progress = Math.max(0, Math.min(1, progress));
+                            let alpha = Math.pow(progress, CONFIG.secret.fadePower); 
+
+                            if (scale > 0.1 && alpha > 0.005) {
+                                 renderQueue.push({
+                                     particle: p,
+                                     scale: scale,
+                                     x: screenX,
+                                     y: screenY,
+                                     alpha: alpha,
+                                     z: z3d
+                                 });
+                            }
+                        });
                     });
-                });
+                }
 
-                // [优化] 移除排序，因为 lighter 混合模式下绘制顺序不影响结果，以此减少 CPU 消耗
-                // renderQueue.sort((a, b) => b.z - a.z);
-
+                // [优化] 移除排序，因为 lighter 混合模式下绘制顺序不影响结果
                 renderQueue.forEach(item => {
                     item.particle.draw(item.scale, item.x, item.y, item.alpha);
                 });
