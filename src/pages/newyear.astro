@@ -47,7 +47,7 @@
         }
 
         /* ============================================================ */
-        /* ====== UI Layer (Input) ====== */
+        /* ====== UI层 UI Layer (Input) ====== */
         /* ============================================================ */
         #ui-layer {
             position: absolute; top: 50%; left: 50%;
@@ -175,7 +175,7 @@
         }
 
         /* ============================================================ */
-        /* ====== 分享留言弹窗样式 (Share Modal) - 升级版 ====== */
+        /* ====== 分享留言弹窗样式 (Share Modal)  ====== */
         /* ============================================================ */
         #share-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -420,7 +420,7 @@
 
     <script is:inline>
         // ================= 自定义调整区 =================
-        // ====== [新增] 输入内容过滤器 (禁止表情，只允许中英数+标点) ======
+        // ======  输入内容过滤器 (禁止表情，只允许中英数+标点) ======
         function filterInput(input) {
             // 正则解释：
             // ^                 : 取反（匹配不在以下范围内的字符）
@@ -461,7 +461,7 @@
                 defaultText: "想给TA留下什么话呢？点击下方按钮生成链接... ", // 没有参数时，圆环显示的引导语
                 ringErrorText: "链接数据不完整 · 请检查链接或者联系TA · ",     // 链接出错时，圆环显示的错误语
                 
-                // [NEW] 固定半径圆环配置 (Fixed Ring Logic)
+                // 固定半径圆环配置 (Fixed Ring Logic)
                 // 解释：不管字多字少，圆环都这么大，像一个传送带一样滚动内容
                 ring: {
                     // 圆环半径 (屏幕宽度的倍数)
@@ -490,14 +490,14 @@
                     slowDown: "魔法出现！请停止转动..."
                 },
 
-                // ====== [新增可控点] 隐藏文字字体大小 ======
+                // ====== 隐藏文字字体大小 ======
                 // 这里独立控制，不影响外面的 carouselMobile 等参数
                 font: {
                     sizeMobile: 55,   // 手机端隐藏文字大小
                     sizeDesktop: 120  // 电脑端隐藏文字大小
                 },
                 
-                // [NEW] 远景淡出强度
+                // 远景淡出强度
                 // 数值越大，圆环背面消失得越快，防止穿帮
                 fadePower: 2.5
             },
@@ -916,7 +916,7 @@
         };
         // ===============================================
 
-        // [原有] 初始化词汇逻辑：如果开启随机，则覆盖原有的 transitionTexts 和 carouselTexts
+        // 初始化词汇逻辑：如果开启随机，则覆盖原有的 transitionTexts 和 carouselTexts
         function initTextLogic() {
             if (CONFIG.textLogic.randomize && CONFIG.textLogic.pool.length > 0) {
                 // 1. 克隆并打乱大词库
@@ -948,10 +948,10 @@
         document.getElementById('btn-share').innerText = CONFIG.ui.share.btnText;
         document.getElementById('share-title-text').innerText = CONFIG.ui.share.modalTitle;
         document.getElementById('share-desc-text').innerHTML = CONFIG.ui.share.modalDesc; // 支持HTML换行
-        // [修改] 占位符不再全局统一，而是分开配置
+        // 占位符不再全局统一，而是分开配置
         // document.getElementById('share-input').placeholder = CONFIG.ui.share.placeholder; 
 
-        // [原有] 应用按钮自定义位置逻辑 (Apply Custom Button Positions)
+        // 应用按钮自定义位置逻辑 (Apply Custom Button Positions)
         function applyButtonPositions() {
             const posCfg = CONFIG.ui.positions;
             const mode = isMobile ? 'mobile' : 'desktop';
@@ -1010,7 +1010,7 @@
             }
         }
 
-        // [原有] 应用免责声明内容
+        // 应用免责声明内容
         const disclaimerEl = document.getElementById('disclaimer');
         disclaimerEl.innerText = CONFIG.ui.disclaimer.text;
         disclaimerEl.style.color = CONFIG.ui.disclaimer.color;
@@ -1020,9 +1020,9 @@
         let particles = []; 
         let staticTopParticles = []; 
         
-        // [修改] 渲染队列分离：正常模式和隐藏模式
+        //  渲染队列分离：正常模式和隐藏模式
         let carouselGroups = [];       // 默认显示的词
-        // [NEW] 不再使用 carouselGroups 存隐藏文字，而是使用缓存
+        
         let charParticleCache = {};    // 缓存字符的点阵数据 {'A': [particles...]}
         let normalizedSecretText = ""; // 处理后首尾相接的无限长文本
         let secretSlotCount = 0;       // 隐藏模式下的槽位数量
@@ -1046,7 +1046,7 @@
         let isFinalState = false; 
         let globalRotation = 0;
 
-        // [新增] 渲染状态控制 (NORMAL -> REVEALING -> SECRET)
+        // 渲染状态控制 (NORMAL -> REVEALING -> SECRET)
         let renderState = 'NORMAL'; 
 
         // 惯性拖拽相关状态变量
@@ -1057,7 +1057,7 @@
             velocity: 0 // 当前额外的拖拽速度（不包含基础自转）
         };
         
-        // [新增] 用于速度补偿的变量
+        //  用于速度补偿的变量
         let normalRingRadius = 0;
         let secretRingRadius = 0;
         let hasSwitchedRadius = false; // 标记是否执行过速度补偿
@@ -1087,9 +1087,7 @@
             }, CONFIG.intro.fadeSpeed);
         }
 
-        // URL 参数检查与逻辑处理
-        // URL 参数检查与逻辑处理
-        // URL 参数检查与逻辑处理 - [最终版：双重检测 + 双重报错 + 错误不填入]
+        // URL 参数检查与逻辑处理 - 双重检测 + 双重报错 + 错误不填入
         function checkUrlAndProceed() {
             // 1. 如果没开启功能，直接显示默认引导语并进入
             if (!CONFIG.urlConfig.enabled) {
@@ -1224,7 +1222,7 @@
         }
         
         // ===============================================
-        // ====== [原有] 资源加载器 (字体 & 逻辑) ======
+        // ====== 资源加载器 (字体 & 逻辑) ======
         // ===============================================
         async function loadGameResources() {
             // 1. 加载字体（如果启用）
@@ -1247,7 +1245,7 @@
         window.addEventListener('load', loadGameResources);
 
         // ===============================================
-        // ====== [原有] 背景音乐管理器 (Web Audio API) ======
+        // ======背景音乐管理器 (Web Audio API) ======
         // ===============================================
         const bgmManager = {
             ctx: null,
@@ -1326,7 +1324,7 @@
         bgmManager.init();
 
         // ===============================================
-        // ====== [原有] 音效管理器 SoundManager ======
+        // ====== 音效管理器 SoundManager ======
         // ===============================================
         const soundManager = {
             ctx: null,
@@ -1430,7 +1428,7 @@
         // 立即初始化音频系统
         soundManager.init();
 
-        // [原有] 初始化背景粒子 (支持多种形状和旋转)
+        // 初始化背景粒子 (支持多种形状和旋转)
         function initBackground() {
             if (!CONFIG.background.enabled) return;
             bgParticles = [];
@@ -1464,7 +1462,7 @@
             }
         }
 
-        // [原有] 更新并绘制背景 (支持样式绘制)
+        // 更新并绘制背景 (支持样式绘制)
         function updateAndDrawBackground() {
             if (!CONFIG.background.enabled) return;
             
@@ -1514,7 +1512,7 @@
         }
 
         function resize() {
-            // [优化] 限制 DPR 最大为 2，以减轻高分屏移动设备的 GPU 负担
+            // 限制 DPR 最大为 2，以减轻高分屏移动设备的 GPU 负担
             dpr = Math.min(window.devicePixelRatio || 1, 2);
             width = window.innerWidth;
             height = window.innerHeight;
@@ -1526,10 +1524,10 @@
             isMobile = width < 768;
             baseParticleSize = isMobile ? 1.6 : 2.0;
 
-            // [原有] 动态应用按钮位置
+            // 动态应用按钮位置
             applyButtonPositions();
 
-            // [原有] 每次调整窗口大小时重置背景
+            // 每次调整窗口大小时重置背景
             initBackground();
         }
         window.addEventListener('resize', resize);
@@ -1601,7 +1599,7 @@
                 ctx.globalAlpha = currentAlpha;
                 ctx.fillStyle = this.color;
                 
-                // [优化] 绘制指令优化：小颗粒用 fillRect，大颗粒用 arc
+                //  绘制指令优化：小颗粒用 fillRect，大颗粒用 arc
                 const drawX = forceX !== null ? forceX : this.x;
                 const drawY = forceY !== null ? forceY : this.y;
                 let s = baseParticleSize * scale;
@@ -1623,12 +1621,12 @@
         }
 
         // 修改核心：支持小数步长 (Density Control Logic Upgrade)
-        // [修改] 增加 font 逻辑
+        // 增加 font 逻辑
         function sampleText(text, targetFontSize, colorType = 'gold', stepOverride = null) {
             const tmpCanvas = document.createElement('canvas');
             const tCtx = tmpCanvas.getContext('2d');
             
-            // [新增] 字体动态判断
+            // 字体动态判断
             const fontFamily = (CONFIG.font.enabled && CONFIG.font.family) 
                             ? CONFIG.font.family 
                             : '"Microsoft YaHei", sans-serif';
@@ -1675,14 +1673,14 @@
             return points;
         }
 
-        // [原有] 新增：高效的文字点阵获取函数 (源自 MyMath.literalLattice)
+        // 高效的文字点阵获取函数 (源自 MyMath.literalLattice)
         // 专门用于烟花文字，性能比 sampleText 更好，且只生成文字区域的点
         function getTextLattice(text, fontSize) {
             // 创建一个临时的离屏 canvas
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d");
             
-            // [新增] 字体动态判断
+            // 字体动态判断
             const fontFamily = (CONFIG.font.enabled && CONFIG.font.family) 
                             ? CONFIG.font.family 
                             : '"Microsoft YaHei", sans-serif';
@@ -1740,16 +1738,16 @@
             charParticleCache = {}; 
             normalizedSecretText = "";
 
-            // [修改] 只显示原本被隐藏的按钮，但排除分享按钮(稍后交互后再显示)
+            //  只显示原本被隐藏的按钮，但排除分享按钮(稍后交互后再显示)
             const hiddenBtns = document.querySelectorAll('.initially-hidden');
             hiddenBtns.forEach(btn => {
-                // [逻辑调整] 如果是分享按钮，先不显示；其他的立即显示
+                //  如果是分享按钮，先不显示；其他的立即显示
                 if (btn.id !== 'btn-share') {
                     btn.classList.add('reveal-btn');
                 }
             });
             
-            // [原有] 显示戳戳屏幕提示
+            //  显示戳戳屏幕提示
             if (!hasTouchedInFinal) {
                 document.getElementById('touch-hint').style.opacity = 1;
             }
@@ -1888,10 +1886,10 @@
             const input = document.getElementById('nameInput');
             if (!input.value) return;
             
-            // [原有] 用户交互触发音频解锁 (iOS/Chrome 策略要求)
+            //  用户交互触发音频解锁 (iOS/Chrome 策略要求)
             soundManager.resume();
             
-            // [原有] 开始播放背景音乐
+            //  开始播放背景音乐
             bgmManager.play();
 
             userName = input.value;
@@ -1902,7 +1900,7 @@
             }, 500);
             updateMainText(userName);
             
-            // [交互] 绑定点击和拖拽事件
+            // 绑定点击和拖拽事件
             window.addEventListener('mousedown', handleDragStart);
             window.addEventListener('mousemove', handleDragMove);
             window.addEventListener('mouseup', handleDragEnd);
@@ -1926,10 +1924,10 @@
         }
 
         // ===============================================
-        // ====== [原有] 烟花逻辑 (Fireworks Logic) ======
+        // ====== 烟花逻辑 (Fireworks Logic) ======
         // ===============================================
 
-        // [原有] 创建尾烟粒子
+        // 创建尾烟粒子
         function createSmoke(x, y) {
             if (!CONFIG.fireworks.smoke.enabled) return;
             
@@ -1945,7 +1943,7 @@
             });
         }
 
-        // [原有] 更新并绘制尾烟
+        // 更新并绘制尾烟
         function updateAndDrawSmoke() {
             if (!CONFIG.fireworks.smoke.enabled) return;
 
@@ -1971,7 +1969,7 @@
         }
 
         function launchFirework(targetX, targetY) {
-            // [原有] 触发发射音效 (lift)
+            // 触发发射音效 (lift)
             soundManager.playSound('lift', 1);
 
             // 发射一个“火箭”
@@ -1989,7 +1987,7 @@
             });
         }
 
-        // [升级] 爆炸逻辑 - 支持图案和文字
+        // 爆炸逻辑 - 支持图案和文字
         function createExplosion(x, y, color) {
             // 1. 判断是否触发文字烟花 (概率触发)
             const textCfg = CONFIG.fireworks.textFireworks;
@@ -2002,7 +2000,7 @@
             const count = isMobile ? CONFIG.fireworks.explosionCountMobile : CONFIG.fireworks.explosionCountDesktop;
             const scaleMul = isMobile ? CONFIG.fireworks.patterns.scaleMobile : CONFIG.fireworks.patterns.scaleDesktop;
             
-            // [原有] 触发普通爆炸音效 (burst)
+            //  触发普通爆炸音效 (burst)
             // 根据 scaleMul 调整音调。scaleMul 越大，scale 越大，声音越低沉。
             // 这里将 scaleMul 归一化到 0.8~1.2 左右传给 playSound
             soundManager.playSound('burst', isMobile ? scaleMul / 1.5 : scaleMul / 2.0);
@@ -2050,9 +2048,9 @@
             }
         }
 
-        // [修改] 文字爆炸逻辑 - 升级版：由中心向外炸开 (使用移植的 getTextLattice 算法)
+        //  文字爆炸逻辑 -：由中心向外炸开 (使用移植的 getTextLattice 算法)
         function createWordExplosion(cx, cy) {
-            // [原有] 触发文字烟花音效 (burstSmall)
+            // 触发文字烟花音效 (burstSmall)
             // 文字烟花通常密集，使用节流的 burstSmall
             soundManager.playSound('burstSmall', 1.0);
 
@@ -2062,11 +2060,11 @@
             // 字体大小 (可以稍微大一点，因为离屏 Canvas 不受屏幕限制)
             const fontSize = isMobile ? 60 : 100; 
             
-            // [移植] 使用新函数获取点阵，替换原来的 sampleText 调用
+            //  使用新函数获取点阵，替换原来的 sampleText 调用
             // 这里的 lattice 包含 {width, height, points: [{x,y}]}
             const lattice = getTextLattice(word, fontSize);
             
-            // [NEW] 确定文字颜色 - 保证单字纯色
+            //  确定文字颜色 - 保证单字纯色
             let explosionColor = 'hsl(45, 100%, 60%)'; // 默认金
             if (cfg.colorMode === 'random') {
                 // 随机取一个彩虹色，但全字统一
@@ -2078,7 +2076,7 @@
                 explosionColor = getRandomColor('gold');
             }
 
-            // [NEW] 获取炸开力度比例
+            // 获取炸开力度比例
             const scaleForce = isMobile ? cfg.explosionScaleMobile : cfg.explosionScaleDesktop;
 
             // 计算中心偏移量，让文字在 cx, cy 处居中炸开
@@ -2108,7 +2106,7 @@
         }
 
         function updateAndDrawFireworks() {
-            // [原有] 先画尾烟，让它在火花下面
+            //  先画尾烟，让它在火花下面
             updateAndDrawSmoke();
 
             // 1. 更新上升的烟花
@@ -2116,13 +2114,13 @@
                 let fw = fireworks[i];
                 fw.y -= fw.speed;
                 
-                // [原有] 计算飞行抖动 (S型上升)
+                //  计算飞行抖动 (S型上升)
                 fw.wobblePhase += 0.15; // 抖动频率
                 const wobbleOffset = Math.sin(fw.wobblePhase) * CONFIG.fireworks.ascentWobble;
                 const currentX = fw.baseX + wobbleOffset;
                 fw.x = currentX;
 
-                // [原有] 生成尾烟
+                // 生成尾烟
                 fw.tick++;
                 if (fw.tick % CONFIG.fireworks.smoke.interval === 0) {
                     createSmoke(currentX, fw.y + 10); // 在火箭尾部生成
@@ -2179,7 +2177,7 @@
         }
 
         // ===============================================
-        // ====== [原有] UI 交互逻辑 ======
+        // ====== UI 交互逻辑 ======
         // ===============================================
 
         function toggleAutoFire() {
@@ -2203,7 +2201,7 @@
             autoFireTimer = setTimeout(() => {
                 if (!isAutoFiring) return;
                 
-                // [原有] 支持并发 (一次放好几个)
+                //  支持并发 (一次放好几个)
                 const burstCount = Math.floor(Math.random() * CONFIG.ui.autoFire.maxConcurrent) + 1;
                 
                 for(let k=0; k<burstCount; k++) {
@@ -2224,7 +2222,7 @@
             window.location.href = CONFIG.ui.blogUrl;
         }
 
-        // [原有] 音量 UI 交互函数 - 控制竖向面板显示
+        // 音量 UI 交互函数 - 控制竖向面板显示
         function toggleVolumePanel() {
             const panel = document.getElementById('volume-panel-vertical');
             panel.classList.toggle('show');
@@ -2242,7 +2240,7 @@
         }
 
         // ===============================================
-        // ====== [逻辑] 留言分享相关逻辑 (SHARE LOGIC) - 升级版 ======
+        // ======  留言分享相关逻辑 (SHARE LOGIC)  ======
         // ===============================================
         function openShareModal() {
             const overlay = document.getElementById('share-overlay');
@@ -2309,7 +2307,7 @@
         }
 
         // ===============================================
-        // ====== [原有] 惯性拖拽与点击逻辑 (Interactive) ======
+        // ====== 惯性拖拽与点击逻辑 (Interactive) ======
         // ===============================================
         
         // 统一获取 X 坐标
@@ -2330,7 +2328,7 @@
                 e.target.closest('.volume-container') || 
                 e.target.closest('#share-overlay')) return;
 
-            // [原有] 交互时尝试解锁 AudioContext
+            //  交互时尝试解锁 AudioContext
             soundManager.resume();
             bgmManager.resume();
 
@@ -2401,7 +2399,7 @@
                         hasTouchedInFinal = true;
                         document.getElementById('touch-hint').style.opacity = 0;
 
-                        // 【修复逻辑】仅当没有隐藏彩蛋时，才立即显示分享按钮
+                        // 仅当没有隐藏彩蛋时，才立即显示分享按钮
                         // 如果有彩蛋，按钮会在 animate 函数中检测到解锁成功后显示
                         if (!secretMessageText) {
                             setTimeout(() => {
@@ -2435,11 +2433,11 @@
         function animate() {
             ctx.clearRect(0, 0, width, height);
             
-            // [原有] 在清空画布后、绘制主要文字前，先画背景
+            //  在清空画布后、绘制主要文字前，先画背景
             // 这样背景永远在最后面，不会遮挡文字
             updateAndDrawBackground();
 
-            // [原有] 绘制烟花（建议放在背景之上，文字之下，或者文字之上都可以）
+            // 绘制烟花（建议放在背景之上，文字之下，或者文字之上都可以）
             // 这里放在文字层下面一点点，或者用 lighter 混合模式让它更亮
             ctx.globalCompositeOperation = 'lighter';
             updateAndDrawFireworks();
@@ -2484,7 +2482,7 @@
                 }
                 
                 // ============================================
-                // ====== [逻辑修复] 秘密切换逻辑 (Switch Logic) ======
+                // ====== 秘密切换逻辑 (Switch Logic) ======
                 // ============================================
                 const touchHintEl = document.getElementById('touch-hint');
                 const switchThreshold = CONFIG.secret.thresholds.switch;
@@ -2497,7 +2495,7 @@
                         // 切换到“揭晓中”状态
                         renderState = 'REVEALING';
                         
-                        // [新增] 速度补偿：缩小角速度，保持线速度恒定
+                        // 速度补偿：缩小角速度，保持线速度恒定
                         // 这样大圆环出现时就不会突然转得飞快
                         if (!hasSwitchedRadius && secretRingRadius > 0 && normalRingRadius > 0) {
                             const ratio = normalRingRadius / secretRingRadius;
@@ -2542,7 +2540,7 @@
 
                 // ============================================
 
-                // [修改] 根据当前显示的是普通圆环还是巨型圆环，决定半径
+                // 根据当前显示的是普通圆环还是巨型圆环，决定半径
                 // 只有完全进入 REVEALING 或 SECRET 状态，且确实有隐藏词组，才使用巨型半径
                 const shouldUseSecretRadius = (renderState !== 'NORMAL' && normalizedSecretText.length > 0);
                 
@@ -2659,7 +2657,7 @@
                     });
                 }
 
-                // [优化] 移除排序，因为 lighter 混合模式下绘制顺序不影响结果
+                // 移除排序，因为 lighter 混合模式下绘制顺序不影响结果
                 renderQueue.forEach(item => {
                     item.particle.draw(item.scale, item.x, item.y, item.alpha);
                 });
