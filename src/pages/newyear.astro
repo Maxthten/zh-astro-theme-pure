@@ -353,7 +353,7 @@
     </div>
 
     <div id="ui-layer">
-        <input type="text" id="nameInput" placeholder="请输入你的名字" maxlength="12">
+        <input type="text" id="nameInput" placeholder="请输入你的名字" maxlength="12" oninput="filterInput(this)">
         <br>
         <button onclick="startShow()">开启 2026</button>
         <div id="disclaimer"></div>
@@ -397,12 +397,12 @@
             
             <div class="share-input-group">
                 <label class="share-label">对方的名字</label>
-                <input type="text" class="share-input-area" id="share-name-input" maxlength="12" placeholder="例如: Maxton">
+                <input type="text" class="share-input-area" id="share-name-input" maxlength="12" placeholder="例如: Maxton" oninput="filterInput(this)">
             </div>
             
             <div class="share-input-group">
                 <label class="share-label">想对TA说的话 (隐藏彩蛋)</label>
-                <textarea class="share-input-area" id="share-msg-input" rows="3" placeholder="在快速旋转圆环时才会出现哦..."></textarea>
+                <textarea class="share-input-area" id="share-msg-input" rows="3" placeholder="在快速旋转圆环时才会出现哦..." oninput="filterInput(this)"></textarea>
             </div>
             
             <button class="modal-btn btn-gen" onclick="generateShareLink()">生成链接</button>
@@ -420,6 +420,22 @@
 
     <script is:inline>
         // ================= 自定义调整区 =================
+        // ====== [新增] 输入内容过滤器 (禁止表情，只允许中英数+标点) ======
+        function filterInput(input) {
+            // 正则解释：
+            // ^                 : 取反（匹配不在以下范围内的字符）
+            // \u4e00-\u9fa5     : 常用汉字
+            // \x20-\x7E         : 所有ASCII字符 (包含 数字、字母、英文标点、空格)
+            // \u3000-\u303F     : CJK 标点符号 (如顿号、全角空格)
+            // \uFF00-\uFFEF     : 全角ASCII变体 (如全角逗号、句号、感叹号)
+            // \n                : 换行符 (允许 Textarea 换行)
+            const regex = /[^\u4e00-\u9fa5\x20-\x7E\u3000-\u303F\uFF00-\uFFEF\n]/g;
+            
+            // 如果发现了非法字符，直接替换为空
+            if (regex.test(input.value)) {
+                input.value = input.value.replace(regex, '');
+            }
+        }
         const CONFIG = {
             
             // ============================================
@@ -433,7 +449,7 @@
                 // 是否自动填入输入框 (true=填入, false=不填)
                 autoFill: true,
                 // 当链接损坏/解压失败时显示的错误提示 (支持HTML)
-                errorText: "链接已损坏或失效<br>请联系发送者重新获取",
+                errorText: "链接已损坏<br>请联系TA重新获取",
                 // 错误提示停留时间 (毫秒)
                 errorDuration: 1300
             },
@@ -443,7 +459,7 @@
                 // [密语] 参数名，例如 ?m=... (lz-string压缩)
                 paramNameMsg: 'm',
                 defaultText: "想给TA留下什么话呢？点击下方按钮生成链接... ", // 没有参数时，圆环显示的引导语
-                ringErrorText: "链接数据已损坏 · 无法查看隐藏内容 · ",     // 链接出错时，圆环显示的错误语
+                ringErrorText: "链接数据不完整 · 请检查链接或者联系TA · ",     // 链接出错时，圆环显示的错误语
                 
                 // [NEW] 固定半径圆环配置 (Fixed Ring Logic)
                 // 解释：不管字多字少，圆环都这么大，像一个传送带一样滚动内容
@@ -483,7 +499,7 @@
                 
                 // [NEW] 远景淡出强度
                 // 数值越大，圆环背面消失得越快，防止穿帮
-                fadePower: 5.0
+                fadePower: 2.5
             },
 
             // ============================================
@@ -1073,6 +1089,7 @@
 
         // URL 参数检查与逻辑处理
         // URL 参数检查与逻辑处理
+        // URL 参数检查与逻辑处理 - [最终版：双重检测 + 双重报错 + 错误不填入]
         function checkUrlAndProceed() {
             // 1. 如果没开启功能，直接显示默认引导语并进入
             if (!CONFIG.urlConfig.enabled) {
@@ -1082,14 +1099,15 @@
             }
 
             const urlParams = new URLSearchParams(window.location.search);
-            const rawVal = urlParams.get(CONFIG.urlConfig.paramName);      // 名字参数
-            const rawMsgVal = urlParams.get(CONFIG.secret.paramNameMsg);   // 密语参数
+            // 获取原始参数字符串
+            const rawNameVal = urlParams.get(CONFIG.urlConfig.paramName);  // n
+            const rawMsgVal = urlParams.get(CONFIG.secret.paramNameMsg);   // m
 
             // 2. 尝试解压名字
             let decodedName = null;
-            if (rawVal) {
+            if (rawNameVal) {
                 try {
-                    decodedName = LZString.decompressFromEncodedURIComponent(rawVal);
+                    decodedName = LZString.decompressFromEncodedURIComponent(rawNameVal);
                 } catch (e) { console.error("Name decompress error", e); }
             }
 
@@ -1103,24 +1121,27 @@
 
             // ====== 核心判断逻辑 ======
             
-            // 定义什么是“坏链接”：有参数，但是解压出来是空的
-            const isNameBad = (rawVal && !decodedName);
+            // 定义坏链接：(有参数n 但解压失败) 或者 (有参数m 但解压失败)
+            const isNameBad = (rawNameVal && !decodedName);
             const isMsgBad = (rawMsgVal && !decodedMsg);
 
-            // 【分支一：链接有问题】
+            // 【分支一：只要有一个坏了 (n坏了 或 m坏了)，统统报错】
             if (isNameBad || isMsgBad) {
                 
-                // A. 设置圆环文字为“错误提示” (达成圆环提示)
+                // A. 设置圆环文字为“错误提示” (满足：圆环提示链接损坏)
                 secretMessageText = CONFIG.secret.ringErrorText;
 
-                // B. 播放开场红色报错动画 (达成开场提示)
+                // B. 【满足：n出错不填入】
+                // 这里没有任何给 nameInput 赋值的代码，所以输入框保持空白。
+                // 即使 n 是好的但 m 坏了，为了安全起见，这里也不会自动填入，让用户手动输入更稳妥。
+
+                // C. 播放开场红色报错动画 (满足：开屏提示错误)
                 const introText = document.getElementById('intro-text');
                 const introLayer = document.getElementById('intro-layer');
                 
                 introText.style.opacity = 0;
                 
                 setTimeout(() => {
-                    // 显示配置里的 errorText (支持HTML换行)
                     introText.innerHTML = CONFIG.urlConfig.errorText;
                     introText.className = "breathing error-style"; 
                     introText.style.opacity = 1;
@@ -1128,26 +1149,26 @@
                     introLayer.style.opacity = 1; 
                     introLayer.style.display = 'flex';
 
-                    // 动画播放完毕后，自动进入 UI 层
+                    // 动画播放完毕后，进入 UI 层
                     setTimeout(() => {
                         showUILayer();
                     }, CONFIG.urlConfig.errorDuration);
                 }, 500);
 
             } 
-            // 【分支二：链接正常 或者 根本没参数】
+            // 【分支二：链接完全正常 或者 根本没参数】
             else {
-                // 自动填入名字
+                // 1. 只有在名字解压成功的情况下，才自动填入
                 if (decodedName && CONFIG.urlConfig.autoFill) {
                     document.getElementById('nameInput').value = decodedName;
                 }
 
-                // 决定圆环显示什么
+                // 2. 决定圆环显示什么
                 if (decodedMsg) {
-                    // 1. 有隐藏信息 -> 显示隐藏信息
+                    // 有隐藏信息 -> 显示隐藏信息
                     secretMessageText = decodedMsg;
                 } else {
-                    // 2. 没隐藏信息 -> 显示默认引导语 ("想给TA留下什么话呢...")
+                    // 没隐藏信息 -> 显示默认引导语
                     secretMessageText = CONFIG.secret.defaultText;
                 }
 
