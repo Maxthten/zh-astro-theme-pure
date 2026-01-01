@@ -419,22 +419,44 @@
     <canvas id="canvas"></canvas>
 
     <script is:inline>
-        // ================= 自定义调整区 =================
-        // ======  输入内容过滤器 (禁止表情，只允许中英数+标点) ======
+        // ======  输入内容过滤器 (优化版：解决中文输入法冲突) ======
         function filterInput(input) {
-            // 正则解释：
-            // ^                 : 取反（匹配不在以下范围内的字符）
-            // \u4e00-\u9fa5     : 常用汉字
-            // \x20-\x7E         : 所有ASCII字符 (包含 数字、字母、英文标点、空格)
-            // \u3000-\u303F     : CJK 标点符号 (如顿号、全角空格)
-            // \uFF00-\uFFEF     : 全角ASCII变体 (如全角逗号、句号、感叹号)
-            // \n                : 换行符 (允许 Textarea 换行)
+            // 1. 如果正在使用拼音输入法组词，直接暂停过滤，防止字母乱跳
+            if (input.isComposing) return;
+
+            // 正则配置：只允许 中文、英文、数字、常用标点、换行
             const regex = /[^\u4e00-\u9fa5\x20-\x7E\u3000-\u303F\uFF00-\uFFEF\n]/g;
             
-            // 如果发现了非法字符，直接替换为空
+            // 2. 如果发现了非法字符，进行替换
             if (regex.test(input.value)) {
                 input.value = input.value.replace(regex, '');
             }
+        }
+
+        // ====== 初始化输入框监听 (绑定合成事件) ======
+        function initInputListeners() {
+            // 获取页面上所有需要输入的框 (名字输入框 + 分享弹窗里的两个框)
+            const inputs = [
+                document.getElementById('nameInput'),
+                document.getElementById('share-name-input'),
+                document.getElementById('share-msg-input')
+            ];
+
+            inputs.forEach(el => {
+                if (!el) return; // 防止找不到元素报错
+
+                // 监听：开始打拼音
+                el.addEventListener('compositionstart', function() {
+                    el.isComposing = true; // 标记：正在组词
+                });
+
+                // 监听：拼音输入结束 (选词完成)
+                el.addEventListener('compositionend', function() {
+                    el.isComposing = false; // 标记：组词结束
+                    // 选完词后，立即手动触发一次过滤，把可能混入的非法符号洗掉
+                    filterInput(el); 
+                });
+            });
         }
         const CONFIG = {
             
@@ -1241,9 +1263,11 @@
             runIntroSequence();
         }
 
-        // 页面加载完成后，先加载资源，再启动
-        window.addEventListener('load', loadGameResources);
-
+       // 页面加载完成后，先加载资源，再启动
+        window.addEventListener('load', () => {
+            initInputListeners(); 
+            loadGameResources();  // 原有的资源加载
+        });
         // ===============================================
         // ======背景音乐管理器 (Web Audio API) ======
         // ===============================================
