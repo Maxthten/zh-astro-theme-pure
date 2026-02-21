@@ -8,7 +8,6 @@ export const prerender = true
 export const partial = true
 
 const docsCollection = (await getBlogCollection('docs')) as CollectionEntry<'docs'>[]
-// Group docs by id first part (setup, integrations, advanced, etc.)
 const docsByCate = docsCollection.reduce((acc: { [key: string]: typeof docsCollection }, doc) => {
   const id = doc.id.split('/')[0]
   if (!acc[id]) acc[id] = [] as typeof docsCollection
@@ -21,7 +20,6 @@ const docCategories = {
   web: 'WEB安全',
   rl: '强化学习',
   misc: '杂谈',
-  //上面修改文件夹名字
 }
 
 type Props = {
@@ -37,20 +35,22 @@ const { title = true, class: className, ...props } = Astro.props
   <ul class='mt-4 flex flex-col gap-y-5'>
     {
       Object.entries(docCategories).map(([id, title]: [string, string]) => (
-        <li>
-          <h3 class='text-muted-foreground text-xs tracking-widest uppercase'>{title}</h3>
-          <ul class='mt-2 flex flex-col'>
-            {docsByCate[id]
-              .sort((a, b) => a.data.order - b.data.order)
-              .map((doc) => (
-                <li class='docs-item flex relative ms-2 px-3 py-1 text-foreground/75 transition-all rounded-2xl'>
-                  <a class='flex-1 hover:text-foreground block truncate py-1' href={`/docs/${doc.id}`}>
-                    {doc.data.title}
-                  </a>
-                </li>
-              ))}
-          </ul>
-        </li>
+        docsByCate[id] && (
+          <li>
+            <h3 class='text-muted-foreground text-xs tracking-widest uppercase'>{title}</h3>
+            <ul class='mt-2 flex flex-col'>
+              {docsByCate[id]
+                .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0))
+                .map((doc) => (
+                  <li class='docs-item flex relative ms-2 px-3 py-1 text-foreground/75 transition-all rounded-2xl'>
+                    <a class='flex-1 hover:text-foreground block truncate py-1' href={`/docs/${doc.id}`}>
+                      {doc.data.title}
+                    </a>
+                  </li>
+                ))}
+            </ul>
+          </li>
+        )
       ))
     }
   </ul>
