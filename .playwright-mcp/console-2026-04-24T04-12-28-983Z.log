@@ -1,0 +1,8 @@
+[     192ms] [WARNING] [Vue warn]: Invalid prop: type check failed for prop "imageUploader". Expected Function, got Boolean with value false. 
+  at <WalineComment path="localhost:about-guestbook" serverURL="https://co.maxtonniu.com" emoji= [https://cdn.jsdelivr.net/npm/@waline/emojis@1.2.0/bmoji, https://cdn.jsdelivr.net/npm/@waline/emojis@1.2.0/weibo]  ... > 
+  at <App> @ http://127.0.0.1:4321/node_modules/.vite/deps/@waline_client.js?v=ce98e7f7:2494
+[  120487ms] [WARNING] [Vue warn]: Invalid prop: type check failed for prop "imageUploader". Expected Function, got Boolean with value false. 
+  at <WalineComment path="localhost:about-guestbook" serverURL="https://co.maxtonniu.com" emoji= [https://cdn.jsdelivr.net/npm/@waline/emojis@1.2.0/bmoji, https://cdn.jsdelivr.net/npm/@waline/emojis@1.2.0/weibo]  ... > 
+  at <App> @ http://127.0.0.1:4321/node_modules/.vite/deps/@waline_client.js?v=ce98e7f7:2494
+[  484068ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:4321/@vite/client:1695
+[  486072ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:4321/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:4321/@vite/client:1766

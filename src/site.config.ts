@@ -176,19 +176,29 @@ export const integ: IntegrationUserConfig = {
   // Comment system
   //暂时先不用了 感觉容易出问题
   waline: {
-    enable: false,
+    enable: true,
     // Server service link
-    server: 'https://astro-theme-pure-waline.arthals.ink/',
+    server: 'https://co.maxtonniu.com',
     // Refer https://waline.js.org/en/guide/features/emoji.html
     emoji: ['bmoji', 'weibo'],
     // Refer https://waline.js.org/en/reference/client/props.html
     additionalConfigs: {
-      // search: false,
-      pageview: true,
-      comment: true,
+      lang: 'zh-CN',
+      dark: 'html.dark',
+      search: false,
+      pageview: '.waline-pageview-count',
+      comment: '.waline-comment-count',
+      meta: ['nick', 'mail', 'link'],
+      requiredMeta: ['nick'],
+      login: 'enable',
+      pageSize: 10,
+      wordLimit: [0, 1000],
       locale: {
-        reaction0: 'Like',
-        placeholder: 'Welcome to comment. (Email to receive replies. Login is unnecessary)'
+        nick: '昵称',
+        mail: '邮箱',
+        link: '网站',
+        reaction0: '喜欢',
+        placeholder: '欢迎留言。邮箱可选，填写后可接收回复通知。'
       },
       imageUploader: false
     }

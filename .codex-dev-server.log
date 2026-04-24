@@ -1,0 +1,19 @@
+
+> astro-theme-pure@4.1.1 dev
+> astro dev --host 127.0.0.1
+
+[2m23:07:19[22m [34m[types][39m Generated [2m1ms[22m
+[2m23:07:20[22m [34m[content][39m Syncing content
+[2m23:07:20[22m [34m[content][39m Astro config changed
+[2m23:07:20[22m [34m[content][39m Clearing content store
+[2m23:07:22[22m [34m[content][39m Synced content
+
+[42m[1m astro [22m[49m [32mv5.16.6[39m [2mready in[22m 3759 [2mms[22m
+
+[2m┃[22m Local    [36mhttp://127.0.0.1:4321/[39m
+
+[2m23:07:22[22m [32mwatching for file changes...[39m
+[2m23:07:26[22m [34m[200][39m /blog/rl_chapter10 [2m59ms[22m
+[2m23:07:27[22m [34m[200][39m / [2m13ms[22m
+[2m23:07:47[22m [34m[200][39m /blog/rl_chapter10 [2m8ms[22m
+[2m23:07:59[22m [34m[200][39m /blog/rl_chapter10 [2m6ms[22m

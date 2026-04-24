@@ -1,0 +1,273 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "Brand" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - text: Maxton‘s Blog
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - link "Nav menu item" [ref=e8] [cursor=pointer]:
+            - /url: /blog
+            - text: 博客
+          - link "Nav menu item" [ref=e9] [cursor=pointer]:
+            - /url: /docs
+            - text: 文档
+          - link "Nav menu item" [ref=e10] [cursor=pointer]:
+            - /url: /links
+            - text: 链接
+          - link "Nav menu item" [ref=e11] [cursor=pointer]:
+            - /url: /about
+            - text: 关于
+          - link "Nav menu item" [ref=e12] [cursor=pointer]:
+            - /url: /archives
+            - text: 时间轴
+          - link "Nav menu item" [ref=e13] [cursor=pointer]:
+            - /url: https://en.maxtonniu.com/about?sync_theme=light
+            - text: English
+          - link "搜索" [ref=e15] [cursor=pointer]:
+            - /url: /search
+            - generic [ref=e16]: 搜索
+            - img [ref=e17]
+        - button "深色模式" [ref=e22] [cursor=pointer]:
+          - generic [ref=e23]: 深色模式
+          - img [ref=e24]
+    - generic [ref=e28]:
+      - link "返回" [ref=e29] [cursor=pointer]:
+        - /url: /
+        - img [ref=e30]
+        - paragraph [ref=e32]: 返回
+      - main [ref=e33]:
+        - complementary [ref=e34]:
+          - generic [ref=e35]:
+            - heading "内容目录" [level=2] [ref=e36]
+            - list [ref=e37]:
+              - listitem [ref=e38]:
+                - 'link "Scroll to section: 爱好" [ref=e40] [cursor=pointer]':
+                  - /url: "#hobbies"
+                  - text: 爱好
+              - listitem [ref=e41]:
+                - 'link "Scroll to section: 工具" [ref=e43] [cursor=pointer]':
+                  - /url: "#tools"
+                  - text: 工具
+              - listitem [ref=e44]:
+                - 'link "Scroll to section: 悄悄话" [ref=e46] [cursor=pointer]':
+                  - /url: "#gossips"
+                  - text: 悄悄话
+              - listitem [ref=e47]:
+                - 'link "Scroll to section: 留言板" [ref=e49] [cursor=pointer]':
+                  - /url: "#guestbook"
+                  - text: 留言板
+        - article [ref=e50]:
+          - heading "关于" [level=1] [ref=e52]
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: 自动化专业/CTF player
+            - paragraph [ref=e55]: 你好，我是 Maxton Niu，一名来自江南大学（JNU）自动化专业的学生。我的技术栈主要聚焦于 Web 安全，同时也正在深入探索强化学习（Reinforcement Learning）领域。在硬件方面，我对 PCB 设计也有一定的实践认知。目前我正处于夯实基础的阶段，虽然数学的复杂性常让我感到挣扎，但我享受攻克难关的过程。作为一名初学者，我推崇简单、直接的问题解决方式，并期待未来能在这些前沿方向上有所建树。如果你想要联系我，可以发邮件给maxtonniu@outlook.com
+            - paragraph [ref=e56]: "格言: Attention Is All You Need. 歪比巴卜"
+            - heading "爱好" [level=2] [ref=e57]
+            - list [ref=e58]:
+              - listitem [ref=e59]: 羽毛球
+              - listitem [ref=e60]: 单机游戏
+              - listitem [ref=e61]: 影视作品
+            - heading "工具" [level=2] [ref=e62]
+            - paragraph [ref=e63]: 支撑我的工具如下
+            - generic [ref=e64]:
+              - generic [ref=e65]: 生产力
+              - generic [ref=e66]:
+                - link "Chrome 浏览器" [ref=e67] [cursor=pointer]:
+                  - /url: https://www.google.com/chrome/
+                  - generic [ref=e68]:
+                    - img [ref=e69]
+                    - generic [ref=e75]:
+                      - generic [ref=e76]: Chrome
+                      - generic [ref=e77]: 浏览器
+                - link "Microsoft Edge 浏览器" [ref=e78] [cursor=pointer]:
+                  - /url: https://www.microsoft.com/en-us/edge
+                  - generic [ref=e79]:
+                    - img [ref=e80]
+                    - generic [ref=e90]:
+                      - generic [ref=e91]: Microsoft Edge
+                      - generic [ref=e92]: 浏览器
+                - link "Burp Suite Burp Suite 渗透测试" [ref=e93] [cursor=pointer]:
+                  - /url: https://portswigger.net/burp
+                  - generic [ref=e94]:
+                    - img "Burp Suite" [ref=e95]
+                    - generic [ref=e97]:
+                      - generic [ref=e98]: Burp Suite
+                      - generic [ref=e99]: 渗透测试
+                - link "Typedown Markdown 编辑器" [ref=e100] [cursor=pointer]:
+                  - /url: https://github.com/byxiaozhi/Typedown
+                  - generic [ref=e101]:
+                    - img [ref=e102]
+                    - generic [ref=e131]:
+                      - generic [ref=e132]: Typedown
+                      - generic [ref=e133]: Markdown 编辑器
+                - link "Docker Desktop 容器化工具" [ref=e134] [cursor=pointer]:
+                  - /url: https://www.docker.com/products/docker-desktop/
+                  - generic [ref=e135]:
+                    - img [ref=e136]
+                    - generic [ref=e148]:
+                      - generic [ref=e149]: Docker Desktop
+                      - generic [ref=e150]: 容器化工具
+                - link "Zotero 参考文献管理工具" [ref=e151] [cursor=pointer]:
+                  - /url: https://www.zotero.org/
+                  - generic [ref=e152]:
+                    - img [ref=e153]
+                    - generic [ref=e156]:
+                      - generic [ref=e157]: Zotero
+                      - generic [ref=e158]: 参考文献管理工具
+            - generic [ref=e159]:
+              - generic [ref=e160]: 开发工具
+              - generic [ref=e161]:
+                - link "VS Code IDE" [ref=e162] [cursor=pointer]:
+                  - /url: https://code.visualstudio.com/
+                  - generic [ref=e163]:
+                    - img [ref=e164]
+                    - generic [ref=e172]:
+                      - generic [ref=e173]: VS Code
+                      - generic [ref=e174]: IDE
+                - link "Clion IDE" [ref=e175] [cursor=pointer]:
+                  - /url: https://www.jetbrains.com/clion/
+                  - generic [ref=e176]:
+                    - img [ref=e177]
+                    - generic [ref=e179]:
+                      - generic [ref=e180]: Clion
+                      - generic [ref=e181]: IDE
+                - link "Phpstorm IDE" [ref=e182] [cursor=pointer]:
+                  - /url: https://www.jetbrains.com/phpstorm/
+                  - generic [ref=e183]:
+                    - img [ref=e184]
+                    - generic [ref=e186]:
+                      - generic [ref=e187]: Phpstorm
+                      - generic [ref=e188]: IDE
+                - link "PyCharm IDE" [ref=e189] [cursor=pointer]:
+                  - /url: https://www.jetbrains.com/pycharm/
+                  - generic [ref=e190]:
+                    - img [ref=e191]
+                    - generic [ref=e193]:
+                      - generic [ref=e194]: PyCharm
+                      - generic [ref=e195]: IDE
+            - generic [ref=e196]:
+              - generic [ref=e197]: 环境
+              - generic [ref=e198]:
+                - link "Ubuntu 24.04 LTS Linux 发行版" [ref=e199] [cursor=pointer]:
+                  - /url: https://ubuntu.com/
+                  - generic [ref=e200]:
+                    - img [ref=e201]
+                    - generic [ref=e204]:
+                      - generic [ref=e205]: Ubuntu 24.04 LTS
+                      - generic [ref=e206]: Linux 发行版
+                - link "Windows 11 笔记本" [ref=e207] [cursor=pointer]:
+                  - /url: https://news.microsoft.com/windows11-general-availability/
+                  - generic [ref=e208]:
+                    - img [ref=e209]
+                    - generic [ref=e211]:
+                      - generic [ref=e212]: Windows 11
+                      - generic [ref=e213]: 笔记本
+            - heading "悄悄话" [level=2] [ref=e214]
+            - generic [ref=e216]:
+              - generic [ref=e217] [cursor=pointer]:
+                - paragraph [ref=e218]: 警告请勿阅读
+                - img [ref=e220]
+              - generic:
+                - generic: 开个玩笑。你还想了解我哪些方面？
+            - generic [ref=e222]:
+              - heading "留言板" [level=2] [ref=e223]
+              - paragraph [ref=e224]: 在这里留下你的句子，就当是打个招呼。
+              - generic [ref=e227]:
+                - generic [ref=e229]:
+                  - generic [ref=e230]:
+                    - generic [ref=e231]:
+                      - generic [ref=e232]: 昵称
+                      - textbox "昵称" [ref=e233]
+                    - generic [ref=e234]:
+                      - generic [ref=e235]: 邮箱(可选)
+                      - textbox "邮箱(可选)" [ref=e236]
+                    - generic [ref=e237]:
+                      - generic [ref=e238]: 网站(可选)
+                      - textbox "网站(可选)" [ref=e239]
+                  - textbox "路过的话，留一句也好。（审核后显示）" [ref=e240]
+                  - generic [ref=e241]:
+                    - generic [ref=e242]:
+                      - link "Markdown is supported" [ref=e243] [cursor=pointer]:
+                        - /url: https://guides.github.com/features/mastering-markdown/
+                        - img [ref=e244]
+                      - button "表情" [ref=e312] [cursor=pointer]:
+                        - img [ref=e313]
+                      - button "预览" [ref=e246] [cursor=pointer]:
+                        - img [ref=e247]
+                    - generic [ref=e250]:
+                      - generic [ref=e251]: （审核后显示）
+                      - generic [ref=e252]:
+                        - text: "0"
+                        - generic [ref=e253]: / 1000
+                        - text: 字
+                      - button "登录" [ref=e254] [cursor=pointer]
+                      - button "留言" [ref=e255] [cursor=pointer]
+                - generic [ref=e256]:
+                  - generic [ref=e257]: 2 留言
+                  - list [ref=e258]:
+                    - listitem [ref=e259] [cursor=pointer]: 按正序
+                    - listitem [ref=e260] [cursor=pointer]: 按倒序
+                    - listitem [ref=e261] [cursor=pointer]: 按热度
+                - generic [ref=e315]:
+                  - generic [ref=e318]:
+                    - generic [ref=e319]:
+                      - generic [ref=e320]: test
+                      - text: 11 分钟前
+                      - generic [ref=e321]:
+                        - button "0" [ref=e322] [cursor=pointer]:
+                          - img [ref=e323]
+                          - text: "0"
+                        - button "回复" [ref=e325] [cursor=pointer]:
+                          - img [ref=e326]
+                    - generic [ref=e328]:
+                      - generic [ref=e329]: Edge147.0
+                      - generic [ref=e330]: Windows 11.0
+                    - paragraph [ref=e333]: "111111"
+                  - generic [ref=e336]:
+                    - generic [ref=e337]:
+                      - generic [ref=e338]: test
+                      - text: 16 分钟前
+                      - generic [ref=e339]:
+                        - button "0" [ref=e340] [cursor=pointer]:
+                          - img [ref=e341]
+                          - text: "0"
+                        - button "回复" [ref=e343] [cursor=pointer]:
+                          - img [ref=e344]
+                    - generic [ref=e346]:
+                      - generic [ref=e347]: Edge147.0
+                      - generic [ref=e348]: Windows 11.0
+                    - paragraph [ref=e351]: "1231232131123"
+                - generic [ref=e265]:
+                  - text: Powered by
+                  - link "Waline" [ref=e266] [cursor=pointer]:
+                    - /url: https://github.com/walinejs/waline
+                  - text: v3.8.0
+      - button "Back to Top" [ref=e269] [cursor=pointer]:
+        - generic [ref=e270]:
+          - generic [ref=e271]: "100"
+          - generic [ref=e272]: "%"
+        - img [ref=e273]
+    - contentinfo [ref=e277]:
+      - generic [ref=e280]:
+        - generic [ref=e281]: © 2026 Maxton Niu
+        - generic [ref=e282]:
+          - link "Astro" [ref=e283] [cursor=pointer]:
+            - /url: https://github.com/withastro/astro
+          - text: "&"
+          - link "Pure" [ref=e284] [cursor=pointer]:
+            - /url: https://github.com/cworld1/astro-theme-pure
+          - text: theme powered
+  - generic [ref=e287]:
+    - button "Menu" [ref=e288]:
+      - img [ref=e290]
+      - generic: Menu
+    - button "Inspect" [ref=e294]:
+      - img [ref=e296]
+      - generic: Inspect
+    - button "Audit" [ref=e298]:
+      - img [ref=e300]
+      - generic: Audit
+    - button "Settings" [ref=e303]:
+      - img [ref=e305]
+      - generic: Settings
