@@ -18,19 +18,30 @@ const meta = {
         <button id="downloadReport" type="button">下载 JSON 报告</button>
       </div>
       <div id="summary" class="rh-summary">等待检测</div>
+      <div id="model-loading" class="rh-loading" hidden>
+        <div id="model-loading-text">正在加载手部模型</div>
+        <div class="rh-progress"><div id="model-progress-bar"></div></div>
+      </div>
     </section>
 
     <section class="rh-preview" id="camera-preview" hidden>
-      <h2>摄像头预览</h2>
-      <div class="rh-preview-box">
-        <video id="camera-video" autoplay muted playsinline></video>
-        <canvas id="gesture-canvas"></canvas>
+      <div class="rh-preview-header" id="cameraDragHandle">
+        <h2>摄像头预览</h2>
+        <div class="rh-preview-header-actions">
+          <button id="minimizeCamera" type="button">收起</button>
+          <button id="closeCamera" type="button">关闭</button>
+        </div>
       </div>
-      <p id="gesture-status">未开始识别</p>
-      <p id="gesture-debug" class="rh-debug">调试: 未启动</p>
-      <div class="rh-actions">
-        <button id="stopGesture" type="button" hidden>停止手势识别</button>
-        <button id="closeCamera" type="button">关闭摄像头</button>
+      <div id="camera-body">
+        <div class="rh-preview-box">
+          <video id="camera-video" autoplay muted playsinline></video>
+          <canvas id="gesture-canvas"></canvas>
+        </div>
+        <p id="gesture-status">未开始识别</p>
+        <p id="gesture-debug" class="rh-debug">调试: 未启动</p>
+        <div class="rh-actions">
+          <button id="stopGesture" type="button" hidden>停止手势识别</button>
+        </div>
       </div>
     </section>
 
@@ -100,22 +111,83 @@ const meta = {
     font-size: 14px;
   }
 
+  .rh-loading {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+  }
+
+  .rh-loading div:first-child {
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .rh-progress {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: hsl(var(--muted));
+  }
+
+  #model-progress-bar {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+    transition: width 0.2s ease;
+  }
+
   .rh-preview {
     position: fixed;
     right: 16px;
     bottom: 16px;
     z-index: 60;
-    width: min(320px, calc(100vw - 32px));
-    padding: 10px 12px;
+    width: min(280px, calc(100vw - 28px));
+    padding: 8px 10px;
     border: 1px solid hsl(var(--border));
     border-radius: 10px;
     background: hsl(var(--card));
     box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
   }
 
-  .rh-preview h2 {
-    margin: 0 0 8px;
+  .rh-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    margin-bottom: 8px;
+  }
+
+  .rh-preview-header:active {
+    cursor: grabbing;
+  }
+
+  .rh-preview-header h2 {
+    margin: 0;
     font-size: 14px;
+  }
+
+  .rh-preview-header-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .rh-preview-header-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .rh-preview.rh-preview--minimized {
+    width: min(190px, calc(100vw - 20px));
+  }
+
+  .rh-preview--minimized #camera-body {
+    display: none;
   }
 
   .rh-preview-box {
@@ -257,6 +329,24 @@ const meta = {
     .rh-test-head {
       flex-direction: column;
     }
+
+    .rh-preview {
+      width: min(230px, calc(100vw - 20px));
+      padding: 6px 8px;
+    }
+
+    .rh-preview-header h2 {
+      font-size: 12px;
+    }
+
+    .rh-preview-header-actions button {
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+
+    .rh-debug {
+      font-size: 10px;
+    }
   }
 </style>
 
@@ -291,6 +381,7 @@ const meta = {
     gestureFrames: 0,
     gestureHandFrames: 0,
     gestureLastDebug: 0,
+    cameraMinimized: false,
     busy: false
   }
 
@@ -449,7 +540,7 @@ const meta = {
         const video = document.getElementById('camera-video')
         video.srcObject = stream
         await video.play()
-        document.getElementById('camera-preview').hidden = false
+        showCameraPanel()
         const size = `${video.videoWidth || 0}x${video.videoHeight || 0}`
         if (!video.videoWidth || !video.videoHeight) {
           throw new Error('摄像头已打开但没有视频尺寸')
@@ -466,14 +557,17 @@ const meta = {
       actionLabel: '加载手部模型',
       expected: 'hand_landmarker.task 能下载且大小正常',
       run: async () => {
-        const res = await fetch(MODEL_PATH, { cache: 'force-cache' })
-        if (!res.ok) throw new Error(`模型下载失败 HTTP ${res.status}`)
-        const buffer = await res.arrayBuffer()
-        if (buffer.byteLength < 1000000) {
-          throw new Error(`模型文件过小: ${buffer.byteLength} bytes`)
+        setModelLoading('正在下载手部模型（约 7.5 MB），首次可能需要 10-60 秒', 0)
+        try {
+          const buffer = await fetchModelWithProgress()
+          if (buffer.byteLength < 1000000) {
+            throw new Error(`模型文件过小: ${buffer.byteLength} bytes`)
+          }
+          state.modelBuffer = buffer
+          return { status: 'pass', actual: `${(buffer.byteLength / 1048576).toFixed(1)} MB` }
+        } finally {
+          hideModelLoading()
         }
-        state.modelBuffer = buffer
-        return { status: 'pass', actual: `${(buffer.byteLength / 1048576).toFixed(1)} MB` }
       }
     },
     {
@@ -487,17 +581,22 @@ const meta = {
       expected: '能加载 MediaPipe WASM 并创建 HandLandmarker',
       run: async () => {
         if (!state.modelBuffer) throw new Error('请先执行“手部模型加载”')
-        const { FilesetResolver, HandLandmarker } = await import(`${CDN_BASE}/vision_bundle.mjs`)
-        const vision = await FilesetResolver.forVisionTasks(`${CDN_BASE}/wasm`)
-        const landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetBuffer: new Uint8Array(state.modelBuffer) },
-          runningMode: 'VIDEO',
-          numHands: 1,
-          minHandDetectionConfidence: 0.7,
-          minTrackingConfidence: 0.5
-        })
-        state.landmarker = landmarker
-        return { status: 'pass', actual: 'HandLandmarker 创建成功' }
+        setModelLoading('正在初始化 MediaPipe WASM，首次可能需要 10-60 秒', 100)
+        try {
+          const { FilesetResolver, HandLandmarker } = await import(`${CDN_BASE}/vision_bundle.mjs`)
+          const vision = await FilesetResolver.forVisionTasks(`${CDN_BASE}/wasm`)
+          const landmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetBuffer: new Uint8Array(state.modelBuffer) },
+            runningMode: 'VIDEO',
+            numHands: 1,
+            minHandDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+          })
+          state.landmarker = landmarker
+          return { status: 'pass', actual: 'HandLandmarker 创建成功' }
+        } finally {
+          hideModelLoading()
+        }
       }
     },
     {
@@ -633,6 +732,48 @@ const meta = {
   ]
 
   const byId = new Map(TESTS.map((t) => [t.id, t]))
+
+  function setModelLoading(text, percent) {
+    const wrap = document.getElementById('model-loading')
+    const textEl = document.getElementById('model-loading-text')
+    const bar = document.getElementById('model-progress-bar')
+    if (!wrap || !textEl || !bar) return
+    wrap.hidden = false
+    textEl.textContent = text
+    bar.style.width = `${Math.max(0, Math.min(100, percent))}%`
+  }
+
+  function hideModelLoading() {
+    const wrap = document.getElementById('model-loading')
+    if (wrap) wrap.hidden = true
+  }
+
+  function fetchModelWithProgress() {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('GET', MODEL_PATH, true)
+      xhr.responseType = 'arraybuffer'
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable && event.total) {
+          const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
+          setModelLoading(
+            `正在下载手部模型（约 ${(event.total / 1048576).toFixed(1)} MB） ${percent}%`,
+            percent
+          )
+        }
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.response)
+        } else {
+          reject(new Error(`模型下载失败 HTTP ${xhr.status}`))
+        }
+      }
+      xhr.onerror = () => reject(new Error('模型下载网络错误'))
+      xhr.onabort = () => reject(new Error('模型下载被取消'))
+      xhr.send()
+    })
+  }
 
   function detectPlatform() {
     const ua = navigator.userAgent || ''
@@ -1015,6 +1156,83 @@ const meta = {
     if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
+  function showCameraPanel() {
+    const panel = document.getElementById('camera-preview')
+    const body = document.getElementById('camera-body')
+    const button = document.getElementById('minimizeCamera')
+    if (!panel || !body || !button) return
+    panel.hidden = false
+    state.cameraMinimized = false
+    panel.classList.remove('rh-preview--minimized')
+    body.hidden = false
+    button.textContent = '收起'
+  }
+
+  function toggleCameraMinimized() {
+    const panel = document.getElementById('camera-preview')
+    const body = document.getElementById('camera-body')
+    const button = document.getElementById('minimizeCamera')
+    if (!panel || !body || !button) return
+    state.cameraMinimized = !state.cameraMinimized
+    panel.classList.toggle('rh-preview--minimized', state.cameraMinimized)
+    body.hidden = state.cameraMinimized
+    button.textContent = state.cameraMinimized ? '展开' : '收起'
+  }
+
+  function closeCameraPanel() {
+    stopGestureDetection({ status: 'warn', actual: '手势识别已停止', suggestion: '摄像头已关闭。' })
+    stopCamera()
+    const panel = document.getElementById('camera-preview')
+    if (panel) panel.hidden = true
+    patch('camera-open', {
+      status: 'pending',
+      actual: '摄像头已手动关闭',
+      suggestion: '点击“打开摄像头”可重新开启。'
+    })
+  }
+
+  function setupCameraDrag() {
+    const panel = document.getElementById('camera-preview')
+    const handle = document.getElementById('cameraDragHandle')
+    if (!panel || !handle) return
+    let drag = null
+
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('button')) return
+      const rect = panel.getBoundingClientRect()
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: rect.left,
+        top: rect.top
+      }
+      handle.setPointerCapture(event.pointerId)
+    })
+
+    handle.addEventListener('pointermove', (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return
+      const nextLeft = drag.left + event.clientX - drag.startX
+      const nextTop = drag.top + event.clientY - drag.startY
+      const maxLeft = window.innerWidth - panel.offsetWidth - 6
+      const maxTop = window.innerHeight - 48
+      panel.style.left = `${Math.max(6, Math.min(maxLeft, nextLeft))}px`
+      panel.style.top = `${Math.max(6, Math.min(maxTop, nextTop))}px`
+      panel.style.right = 'auto'
+      panel.style.bottom = 'auto'
+    })
+
+    const endDrag = (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return
+      drag = null
+      if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
+        handle.releasePointerCapture(event.pointerId)
+      }
+    }
+    handle.addEventListener('pointerup', endDrag)
+    handle.addEventListener('pointercancel', endDrag)
+  }
+
   function drawHand(ctx, landmarks, width, height) {
     ctx.strokeStyle = '#22c55e'
     ctx.lineWidth = 3
@@ -1144,16 +1362,9 @@ const meta = {
   document.getElementById('copyReport').addEventListener('click', copyReport)
   document.getElementById('downloadReport').addEventListener('click', downloadReport)
   document.getElementById('stopGesture').addEventListener('click', () => stopGestureDetection())
-  document.getElementById('closeCamera').addEventListener('click', () => {
-    stopGestureDetection({ status: 'warn', actual: '手势识别已停止', suggestion: '摄像头已关闭。' })
-    stopCamera()
-    document.getElementById('camera-preview').hidden = true
-    patch('camera-open', {
-      status: 'pending',
-      actual: '摄像头已手动关闭',
-      suggestion: '点击“打开摄像头”可重新开启。'
-    })
-  })
+  document.getElementById('minimizeCamera').addEventListener('click', toggleCameraMinimized)
+  document.getElementById('closeCamera').addEventListener('click', closeCameraPanel)
+  setupCameraDrag()
 
   renderTests()
   updateSummary()
