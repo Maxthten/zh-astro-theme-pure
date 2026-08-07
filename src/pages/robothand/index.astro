@@ -852,6 +852,7 @@
           <label><input id="usePresetAngles" type="checkbox" checked /> 预设手势发送 servo 角度</label>
           <label><input id="writeWithResponse" type="checkbox" /> 写入等待响应</label>
           <label><input id="appendNewline" type="checkbox" /> 命令追加换行</label>
+          <label><input id="keepPoseOnDisconnect" type="checkbox" /> 断开连接保存手势</label>
         </div>
         <div class="rh-grid" id="presetGrid"></div>
       </section>
@@ -1184,6 +1185,15 @@
         return state.queue
       }
 
+      // 把“断开连接保存手势”同步给固件。
+      // 默认不勾选：固件收到 reset，断连后自动回到初始姿态。
+      // 勾选：固件收到 keep，断连后保持当前姿态。
+      function syncPoseMode() {
+        if (!connected()) return
+        const keep = document.getElementById('keepPoseOnDisconnect').checked
+        enqueueCommand(keep ? 'SET_POSE_MODE keep' : 'SET_POSE_MODE reset')
+      }
+
       function sendPreset(name) {
         markPresetFired(name)
         if (!document.getElementById('usePresetAngles').checked) {
@@ -1418,6 +1428,7 @@
           state.char = await service.getCharacteristic(HAND_WRITE_CHAR_UUID)
           state.server = server
           state.queue = Promise.resolve()
+          syncPoseMode()
           logCommand(`已连接 ${device.name || device.id}`)
           setStatus('已就绪', `已连接 ${device.name || device.id}，可以开始控制。`, 'ready')
         } catch (err) {
@@ -1917,6 +1928,7 @@
       document.getElementById('clearLogBtn').addEventListener('click', () => {
         document.getElementById('commandLog').textContent = '暂无指令'
       })
+      document.getElementById('keepPoseOnDisconnect').addEventListener('change', syncPoseMode)
 
       window.addEventListener('resize', () => {
         const panel = document.getElementById('camera-preview')

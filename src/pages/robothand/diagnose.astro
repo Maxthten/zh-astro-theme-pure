@@ -67,6 +67,7 @@ const meta = {
         <label><input id="writeWithResponse" type="checkbox" /> 写入等待响应</label>
         <label><input id="appendNewline" type="checkbox" /> 命令追加换行</label>
         <label><input id="usePresetAngles" type="checkbox" checked /> 预设手势发送 servo 角度</label>
+        <label><input id="keepPoseOnDisconnect" type="checkbox" /> 断开连接保存手势</label>
       </div>
 
       <div class="rh-actions">
@@ -1765,6 +1766,13 @@ const meta = {
     return state.handQueue
   }
 
+  // 与正式页一致：把“断开连接保存手势”同步给固件。
+  function syncHandPoseMode() {
+    if (!handConnected()) return
+    const keep = document.getElementById('keepPoseOnDisconnect').checked
+    enqueueCommand(keep ? 'SET_POSE_MODE keep' : 'SET_POSE_MODE reset')
+  }
+
   function sendPreset(name) {
     const angles = PRESET_ANGLES[name]
     if (!angles) {
@@ -1849,6 +1857,7 @@ const meta = {
       state.handChar = characteristic
       state.handQueue = Promise.resolve()
       state.lastGestureKey = ''
+      syncHandPoseMode()
       setHandStatus(`已连接 ${device.name || device.id}，写特征就绪`)
       logCommand(`已连接 ${device.name || device.id}`)
     } catch (err) {
@@ -1943,6 +1952,10 @@ const meta = {
         appendNewline: Boolean(
           document.getElementById('appendNewline') &&
             document.getElementById('appendNewline').checked
+        ),
+        keepPoseOnDisconnect: Boolean(
+          document.getElementById('keepPoseOnDisconnect') &&
+            document.getElementById('keepPoseOnDisconnect').checked
         )
       },
       results: TESTS.map((t) => ({
@@ -2039,6 +2052,7 @@ const meta = {
   document.getElementById('clearLog').addEventListener('click', () => {
     document.getElementById('commandLog').textContent = '暂无指令'
   })
+  document.getElementById('keepPoseOnDisconnect').addEventListener('change', syncHandPoseMode)
 
   buildControlPanel()
   updateHandUi()
