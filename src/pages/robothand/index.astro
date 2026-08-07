@@ -16,6 +16,7 @@ const meta = {
         <button id="runAuto" type="button">自动环境检测</button>
         <button id="copyReport" type="button">复制测试报告</button>
         <button id="downloadReport" type="button">下载 JSON 报告</button>
+        <button id="clearModelCache" type="button">清除模型缓存</button>
       </div>
       <div id="summary" class="rh-summary">等待检测</div>
       <div id="model-loading" class="rh-loading" hidden>
@@ -39,6 +40,9 @@ const meta = {
         </div>
         <p id="gesture-status">未开始识别</p>
         <p id="gesture-debug" class="rh-debug">调试: 未启动</p>
+        <label class="rh-inline-check">
+          <input id="gestureDriveHand" type="checkbox" /> 用手势驱动机械手
+        </label>
         <div class="rh-actions">
           <button id="stopGesture" type="button" hidden>停止手势识别</button>
         </div>
@@ -46,6 +50,49 @@ const meta = {
     </section>
 
     <section id="tests" class="rh-tests" aria-live="polite"></section>
+
+    <section class="rh-control" id="control-panel">
+      <h2>机械手指令测试</h2>
+      <p class="rh-control-hint">
+        以下按键与桌面上位机保持一致：预设手势会按 PRESET_ANGLES 依次发送 5 条
+        <code>servo_i=angle</code>，也可以单独发送固件内置手势名或自定义文本。
+      </p>
+
+      <div class="rh-field">
+        <label for="deviceNameInput">设备名</label>
+        <input id="deviceNameInput" type="text" value="robhand" autocomplete="off" spellcheck="false" />
+      </div>
+
+      <div class="rh-field-row">
+        <label><input id="writeWithResponse" type="checkbox" /> 写入等待响应</label>
+        <label><input id="appendNewline" type="checkbox" /> 命令追加换行</label>
+        <label><input id="usePresetAngles" type="checkbox" checked /> 预设手势发送 servo 角度</label>
+      </div>
+
+      <div class="rh-actions">
+        <button id="connectHand" type="button">连接机械手</button>
+        <button id="disconnectHand" type="button" disabled>断开连接</button>
+      </div>
+      <div id="handStatus" class="rh-summary">未连接</div>
+
+      <h3>预设手势</h3>
+      <div id="presetButtons" class="rh-grid"></div>
+
+      <h3>五指滑块（0-100 映射到 0-180 度）</h3>
+      <div id="fingerSliders" class="rh-sliders"></div>
+
+      <h3>自定义命令</h3>
+      <div class="rh-actions">
+        <input id="customCommand" type="text" placeholder="例如 servo_0=90 或 fist" autocomplete="off" spellcheck="false" />
+        <button id="sendCustom" type="button" disabled>发送</button>
+      </div>
+
+      <h3>指令日志</h3>
+      <div class="rh-actions">
+        <button id="clearLog" type="button">清空日志</button>
+      </div>
+      <pre id="commandLog" class="rh-log">暂无指令</pre>
+    </section>
   </main>
 </PageLayout>
 
@@ -236,10 +283,149 @@ const meta = {
     overflow-wrap: anywhere;
   }
 
+  .rh-inline-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
   .rh-tests {
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .rh-control {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .rh-control h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+
+  .rh-control h3 {
+    margin: 18px 0 8px;
+    font-size: 14px;
+  }
+
+  .rh-control-hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .rh-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .rh-field label {
+    flex: 0 0 auto;
+    font-size: 13px;
+  }
+
+  .rh-field input[type='text'],
+  .rh-control input[type='text'] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: 14px;
+  }
+
+  .rh-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .rh-field-row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
+  }
+
+  .rh-grid button {
+    padding: 10px 8px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .rh-grid button:hover:not(:disabled) {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
+
+  .rh-grid button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .rh-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rh-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rh-slider-row span:first-child {
+    flex: 0 0 56px;
+    font-size: 13px;
+  }
+
+  .rh-slider-row input[type='range'] {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .rh-slider-row span:last-child {
+    flex: 0 0 46px;
+    text-align: right;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rh-log {
+    max-height: 220px;
+    margin: 0;
+    padding: 10px 12px;
+    overflow: auto;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .rh-test-row {
@@ -352,6 +538,7 @@ const meta = {
 
 <script is:inline type="module">
   const MODEL_PATH = '/robothand/hand_landmarker.task'
+  const MODEL_GZ_PATH = '/robothand/hand_landmarker.task.gz'
   const CDN_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1'
   const HAND_CONNECTIONS = [
     [0, 1], [1, 2], [2, 3], [3, 4],
@@ -368,6 +555,33 @@ const meta = {
     '0000180f-0000-1000-8000-00805f9b34fb'
   ]
 
+  // 与 ESP32 固件和桌面上位机保持一致的协议常量。
+  const HAND_SERVICE_UUID = '89d60870-9908-4472-8f8c-e5b3e6573cd1'
+  const HAND_WRITE_CHAR_UUID = '39dea685-a63e-44b2-8819-9a202581f8fe'
+  const FINGER_LABELS = ['拇指', '食指', '中指', '无名指', '小指']
+  const QUICK_MESSAGES = [
+    'five', 'four', 'three', 'two', 'one',
+    'ok', 'rock', 'love', 'fist', 'scratch', 'come'
+  ]
+  const PRESET_ANGLES = {
+    five: [0, 0, 0, 0, 0],
+    four: [100, 0, 0, 0, 0],
+    three: [100, 0, 0, 0, 100],
+    two: [100, 0, 0, 100, 100],
+    one: [100, 0, 100, 100, 100],
+    ok: [0, 100, 100, 100, 100],
+    rock: [100, 0, 100, 100, 0],
+    love: [0, 0, 100, 100, 0],
+    fist: [100, 100, 100, 100, 100],
+    scratch: [0, 100, 0, 0, 0],
+    come: [0, 0, 100, 0, 0]
+  }
+  const GESTURE_MIN_INTERVAL_MS = 60
+  const DETECT_INTERVAL_MS = 55
+  const MODEL_CACHE_DB = 'robothand-model-cache'
+  const MODEL_CACHE_STORE = 'models'
+  const MODEL_CACHE_KEY = 'hand_landmarker.task'
+
   const state = {
     cameraStream: null,
     modelBuffer: null,
@@ -382,6 +596,16 @@ const meta = {
     gestureHandFrames: 0,
     gestureLastDebug: 0,
     cameraMinimized: false,
+    gestureLastDetect: 0,
+    gestureTimestamp: 0,
+    handDevice: null,
+    handServer: null,
+    handChar: null,
+    handQueue: Promise.resolve(),
+    handConnecting: false,
+    sliderValues: [0, 0, 0, 0, 0],
+    lastGestureKey: '',
+    lastGestureSentAt: 0,
     busy: false
   }
 
@@ -557,14 +781,18 @@ const meta = {
       actionLabel: '加载手部模型',
       expected: 'hand_landmarker.task 能下载且大小正常',
       run: async () => {
-        setModelLoading('正在下载手部模型（约 7.5 MB），首次可能需要 10-60 秒', 0)
+        setModelLoading('正在准备手部模型（首次约 5.5 MB，之后走本地缓存）', 0)
+        const fromCache = Boolean(await readModelFromCache())
         try {
-          const buffer = await fetchModelWithProgress()
+          const buffer = await loadModelBuffer()
           if (buffer.byteLength < 1000000) {
             throw new Error(`模型文件过小: ${buffer.byteLength} bytes`)
           }
           state.modelBuffer = buffer
-          return { status: 'pass', actual: `${(buffer.byteLength / 1048576).toFixed(1)} MB` }
+          return {
+            status: 'pass',
+            actual: `${(buffer.byteLength / 1048576).toFixed(1)} MB / 来源: ${fromCache ? '本地缓存' : '网络下载并已缓存'}`
+          }
         } finally {
           hideModelLoading()
         }
@@ -580,9 +808,24 @@ const meta = {
       actionLabel: '初始化 MediaPipe',
       expected: '能加载 MediaPipe WASM 并创建 HandLandmarker',
       run: async () => {
-        if (!state.modelBuffer) throw new Error('请先执行“手部模型加载”')
+        if (!state.modelBuffer) {
+          setModelLoading('正在重新下载手部模型', 0)
+          try {
+            state.modelBuffer = await loadModelBuffer()
+          } finally {
+            hideModelLoading()
+          }
+        }
         setModelLoading('正在初始化 MediaPipe WASM，首次可能需要 10-60 秒', 100)
         try {
+          if (state.landmarker && typeof state.landmarker.close === 'function') {
+            try {
+              state.landmarker.close()
+            } catch (err) {
+              // 旧实例关闭失败不影响新实例创建。
+            }
+            state.landmarker = null
+          }
           const { FilesetResolver, HandLandmarker } = await import(`${CDN_BASE}/vision_bundle.mjs`)
           const vision = await FilesetResolver.forVisionTasks(`${CDN_BASE}/wasm`)
           const landmarker = await HandLandmarker.createFromOptions(vision, {
@@ -593,6 +836,8 @@ const meta = {
             minTrackingConfidence: 0.5
           })
           state.landmarker = landmarker
+          // WASM 已持有模型副本，释放这块 7.5 MB 引用以降低手机端内存压力。
+          state.modelBuffer = null
           return { status: 'pass', actual: 'HandLandmarker 创建成功' }
         } finally {
           hideModelLoading()
@@ -691,7 +936,7 @@ const meta = {
           const value = await nameChar.readValue()
           deviceName = new TextDecoder().decode(value) || '空值'
         } catch (err) {
-          deviceName = `读取失败: ${err.message}`
+          deviceName = `读取失败: ${err.name || 'Error'} ${err.message || '无详细信息'}`
         }
         return {
           status: 'pass',
@@ -711,10 +956,69 @@ const meta = {
         if (!state.cameraStream) {
           return { status: 'warn', actual: '摄像头未打开', suggestion: '先完成摄像头测试。' }
         }
-        if (!state.bleServer || !state.bleServer.connected) {
+        const anyBle = (state.bleServer && state.bleServer.connected) || handConnected()
+        if (!anyBle) {
           return { status: 'warn', actual: 'BLE 未连接', suggestion: '先完成 BLE 连接测试。' }
         }
         return { status: 'pass', actual: '摄像头与 BLE 同时可用' }
+      }
+    },
+    {
+      id: 'hand-protocol',
+      name: '机械手协议校验',
+      group: '机械手',
+      auto: false,
+      interactive: true,
+      actionLabel: '校验机械手服务与特征',
+      expected: `能连接 robhand 并找到写特征 ${HAND_WRITE_CHAR_UUID}`,
+      run: async () => {
+        if (!handConnected()) {
+          return {
+            status: 'warn',
+            actual: '机械手未连接',
+            suggestion: '请先在下方“机械手指令测试”中点击“连接机械手”。'
+          }
+        }
+        const props = state.handChar.properties || {}
+        const writable = Boolean(props.write || props.writeWithoutResponse)
+        if (!writable) {
+          return {
+            status: 'fail',
+            actual: '找到写特征但不可写',
+            suggestion: '请确认 ESP32 固件将该特征声明为 PROPERTY_WRITE | PROPERTY_WRITE_NR。'
+          }
+        }
+        const modes = []
+        if (props.write) modes.push('write')
+        if (props.writeWithoutResponse) modes.push('write-without-response')
+        return {
+          status: 'pass',
+          actual: `${state.handDevice.name || state.handDevice.id} / 写模式: ${modes.join(', ')}`
+        }
+      }
+    },
+    {
+      id: 'hand-command',
+      name: '机械手指令下发',
+      group: '机械手',
+      auto: false,
+      interactive: true,
+      requires: ['hand-protocol'],
+      actionLabel: '发送 servo 测试指令',
+      expected: '能写入 servo 命令，且机械手实际动作',
+      run: async () => {
+        if (!handConnected()) {
+          return { status: 'warn', actual: '机械手未连接', suggestion: '请先连接机械手。' }
+        }
+        await enqueueCommand('servo_0=0')
+        await enqueueCommand('servo_0=90')
+        await enqueueCommand('servo_0=180')
+        await enqueueCommand('servo_0=0')
+        return {
+          status: 'warn',
+          actual: '已写入 servo_0 的 0/90/180/0 序列',
+          suggestion: '写入成功不代表舵机动作，请人工确认拇指是否摆动，然后自行判定通过。'
+        }
       }
     },
     {
@@ -748,16 +1052,16 @@ const meta = {
     if (wrap) wrap.hidden = true
   }
 
-  function fetchModelWithProgress() {
+  function fetchModelWithProgress(url) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open('GET', MODEL_PATH, true)
+      xhr.open('GET', url, true)
       xhr.responseType = 'arraybuffer'
       xhr.onprogress = (event) => {
         if (event.lengthComputable && event.total) {
           const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
           setModelLoading(
-            `正在下载手部模型（约 ${(event.total / 1048576).toFixed(1)} MB） ${percent}%`,
+            `正在下载手部模型压缩包（约 ${(event.total / 1048576).toFixed(1)} MB） ${percent}%`,
             percent
           )
         }
@@ -775,6 +1079,102 @@ const meta = {
     })
   }
 
+  async function loadModelBuffer() {
+    const cached = await readModelFromCache()
+    if (cached && cached.byteLength >= 1000000) {
+      setModelLoading('已从本地缓存读取手部模型', 100)
+      return cached
+    }
+
+    let buffer = null
+    if (typeof DecompressionStream === 'function') {
+      try {
+        const payload = await fetchModelWithProgress(MODEL_GZ_PATH)
+        buffer = await maybeGunzip(payload)
+      } catch (err) {
+        buffer = null
+      }
+    }
+    if (!buffer || buffer.byteLength < 1000000) {
+      buffer = await fetchModelWithProgress(MODEL_PATH)
+    }
+    await writeModelToCache(buffer)
+    return buffer
+  }
+
+  // 服务器可能给 .gz 带上 Content-Encoding: gzip，此时浏览器已自动解压。
+  // 用 gzip 魔数判断是否仍需手动解压，避免重复解压导致回退再下载一次。
+  async function maybeGunzip(payload) {
+    const head = new Uint8Array(payload.slice(0, 2))
+    const isGzip = head[0] === 0x1f && head[1] === 0x8b
+    if (!isGzip) return payload
+    const stream = new Blob([payload]).stream().pipeThrough(new DecompressionStream('gzip'))
+    return new Response(stream).arrayBuffer()
+  }
+
+  function openModelCache() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('indexedDB 不可用'))
+        return
+      }
+      const request = indexedDB.open(MODEL_CACHE_DB, 1)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
+          db.createObjectStore(MODEL_CACHE_STORE)
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error || new Error('打开缓存失败'))
+    })
+  }
+
+  async function readModelFromCache() {
+    try {
+      const db = await openModelCache()
+      return await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readonly')
+        const req = tx.objectStore(MODEL_CACHE_STORE).get(MODEL_CACHE_KEY)
+        req.onsuccess = () => resolve(req.result || null)
+        req.onerror = () => resolve(null)
+      })
+    } catch (err) {
+      return null
+    }
+  }
+
+  async function writeModelToCache(buffer) {
+    try {
+      const db = await openModelCache()
+      await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite')
+        tx.objectStore(MODEL_CACHE_STORE).put(buffer, MODEL_CACHE_KEY)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => resolve()
+        tx.onabort = () => resolve()
+      })
+    } catch (err) {
+      // 缓存写入失败不影响本次使用。
+    }
+  }
+
+  async function clearModelCache() {
+    try {
+      const db = await openModelCache()
+      await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite')
+        tx.objectStore(MODEL_CACHE_STORE).delete(MODEL_CACHE_KEY)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => resolve()
+        tx.onabort = () => resolve()
+      })
+      return true
+    } catch (err) {
+      return false
+    }
+  }
+
   function detectPlatform() {
     const ua = navigator.userAgent || ''
     const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -789,9 +1189,11 @@ const meta = {
     if (/Edg\//i.test(ua)) browser = 'Microsoft Edge'
     else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Chrome / Chromium'
     else if (/Firefox\//i.test(ua)) browser = 'Firefox'
+    else if (/Bluefy/i.test(ua)) browser = 'Bluefy'
     else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) {
       browser = ios && 'bluetooth' in navigator ? 'Bluefy / Web BLE 浏览器' : 'Safari'
     }
+    else if (ios && 'bluetooth' in navigator) browser = 'iOS Web BLE 浏览器'
     return { os, browser, ios, android, ua }
   }
 
@@ -1074,6 +1476,8 @@ const meta = {
     state.gestureFrames = 0
     state.gestureHandFrames = 0
     state.gestureLastDebug = 0
+    state.gestureLastDetect = 0
+    state.gestureTimestamp = 0
     document.getElementById('stopGesture').hidden = false
     document.getElementById('gesture-status').textContent = '正在识别，请把手放到画面中央'
     document.getElementById('gesture-debug').textContent = '调试: 正在初始化识别循环'
@@ -1083,6 +1487,10 @@ const meta = {
 
     const tick = () => {
       if (!state.gestureRunning) return
+      if (document.hidden) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
       if (video.readyState < 2) {
         state.gestureRaf = requestAnimationFrame(tick)
         return
@@ -1093,6 +1501,12 @@ const meta = {
         state.gestureRaf = requestAnimationFrame(tick)
         return
       }
+      const now = performance.now()
+      if (now - state.gestureLastDetect < DETECT_INTERVAL_MS) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
+      state.gestureLastDetect = now
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w
         canvas.height = h
@@ -1100,7 +1514,8 @@ const meta = {
       ctx.clearRect(0, 0, w, h)
       try {
         state.gestureFrames++
-        const result = state.landmarker.detectForVideo(video, performance.now())
+        state.gestureTimestamp = Math.max(state.gestureTimestamp + 1, Math.round(now))
+        const result = state.landmarker.detectForVideo(video, state.gestureTimestamp)
         const handLandmarks = result.landmarks || result.handLandmarks
         if (handLandmarks && handLandmarks.length) {
           state.gestureHandFrames++
@@ -1109,6 +1524,7 @@ const meta = {
           const gesture = recognize(landmarks)
           document.getElementById('gesture-status').textContent = `识别到: ${gesture.name}`
           state.gestureSeen = true
+          onGestureFrame(gesture)
         } else {
           document.getElementById('gesture-status').textContent = state.gestureSeen
             ? '手已离开画面，请把手放回来'
@@ -1288,6 +1704,225 @@ const meta = {
     return { fingers, name }
   }
 
+  // ---------- 机械手指令测试（与桌面上位机行为一致） ----------
+
+  function logCommand(text) {
+    const el = document.getElementById('commandLog')
+    if (!el) return
+    const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+    const line = `[${stamp}] ${text}`
+    el.textContent = el.textContent === '暂无指令' ? line : `${el.textContent}\n${line}`
+    el.scrollTop = el.scrollHeight
+  }
+
+  function setHandStatus(text) {
+    const el = document.getElementById('handStatus')
+    if (el) el.textContent = text
+  }
+
+  function handConnected() {
+    return Boolean(state.handChar && state.handServer && state.handServer.connected)
+  }
+
+  function updateHandUi() {
+    const connected = handConnected()
+    const connectBtn = document.getElementById('connectHand')
+    const disconnectBtn = document.getElementById('disconnectHand')
+    if (connectBtn) connectBtn.disabled = connected || state.handConnecting
+    if (disconnectBtn) disconnectBtn.disabled = !connected
+    const sendBtn = document.getElementById('sendCustom')
+    if (sendBtn) sendBtn.disabled = !connected
+    for (const button of document.querySelectorAll('[data-preset]')) {
+      button.disabled = !connected
+    }
+    for (const button of document.querySelectorAll('[data-firmware-gesture]')) {
+      button.disabled = !connected
+    }
+  }
+
+  function enqueueCommand(text) {
+    const payload = document.getElementById('appendNewline').checked ? `${text}\n` : text
+    const withResponse = document.getElementById('writeWithResponse').checked
+    state.handQueue = state.handQueue.then(async () => {
+      if (!handConnected()) {
+        logCommand(`跳过（未连接）: ${text}`)
+        return
+      }
+      const bytes = new TextEncoder().encode(payload)
+      try {
+        if (withResponse && state.handChar.writeValueWithResponse) {
+          await state.handChar.writeValueWithResponse(bytes)
+        } else if (!withResponse && state.handChar.writeValueWithoutResponse) {
+          await state.handChar.writeValueWithoutResponse(bytes)
+        } else {
+          await state.handChar.writeValue(bytes)
+        }
+        logCommand(`发送: ${text}`)
+      } catch (err) {
+        logCommand(`发送失败: ${text} -> ${err.name || 'Error'}: ${err.message || err}`)
+      }
+    })
+    return state.handQueue
+  }
+
+  function sendPreset(name) {
+    const angles = PRESET_ANGLES[name]
+    if (!angles) {
+      logCommand(`未知预设手势: ${name}`)
+      return
+    }
+    if (!document.getElementById('usePresetAngles').checked) {
+      enqueueCommand(name)
+      return
+    }
+    angles.forEach((sliderValue, index) => {
+      const angle = Math.max(0, Math.min(180, Math.round(sliderValue * 1.8)))
+      state.sliderValues[index] = sliderValue
+      const slider = document.getElementById(`finger-slider-${index}`)
+      const label = document.getElementById(`finger-value-${index}`)
+      if (slider) slider.value = String(sliderValue)
+      if (label) label.textContent = String(angle)
+      enqueueCommand(`servo_${index}=${angle}`)
+    })
+    logCommand(`预设手势: ${name}`)
+  }
+
+  function onFingerSlider(index, rawValue) {
+    const sliderValue = Math.max(0, Math.min(100, Math.round(Number(rawValue) || 0)))
+    const angle = Math.max(0, Math.min(180, Math.round(sliderValue * 1.8)))
+    const label = document.getElementById(`finger-value-${index}`)
+    if (label) label.textContent = String(angle)
+    // 与桌面上位机一致：变化小于 3 时不重复发送，避免刷 BLE。
+    if (Math.abs(sliderValue - state.sliderValues[index]) < 3) return
+    state.sliderValues[index] = sliderValue
+    if (!handConnected()) return
+    enqueueCommand(`servo_${index}=${angle}`)
+  }
+
+  function onGestureFrame(gesture) {
+    if (!handConnected()) return
+    if (!document.getElementById('gestureDriveHand')) return
+    if (!document.getElementById('gestureDriveHand').checked) return
+    const key = gesture.fingers.join(',')
+    if (key === state.lastGestureKey) return
+    const now = performance.now()
+    if (now - (state.lastGestureSentAt || 0) < GESTURE_MIN_INTERVAL_MS) return
+    state.lastGestureKey = key
+    state.lastGestureSentAt = now
+    gesture.fingers.forEach((up, index) => {
+      const angle = up === 1 ? 0 : 180
+      enqueueCommand(`servo_${index}=${angle}`)
+    })
+    logCommand(`手势驱动: ${gesture.name}`)
+  }
+
+  async function connectHand() {
+    if (!('bluetooth' in navigator)) {
+      setHandStatus('当前浏览器没有 Web Bluetooth，iOS 请使用 Bluefy')
+      return
+    }
+    const name = (document.getElementById('deviceNameInput').value || '').trim()
+    state.handConnecting = true
+    updateHandUi()
+    setHandStatus('正在请求设备...')
+    try {
+      const filters = name ? [{ name }] : undefined
+      const device = await navigator.bluetooth.requestDevice(
+        filters
+          ? { filters, optionalServices: [HAND_SERVICE_UUID] }
+          : { acceptAllDevices: true, optionalServices: [HAND_SERVICE_UUID] }
+      )
+      state.handDevice = device
+      device.addEventListener('gattserverdisconnected', () => {
+        state.handServer = null
+        state.handChar = null
+        state.lastGestureKey = ''
+        setHandStatus(`已断开: ${device.name || device.id}`)
+        logCommand('机械手连接已断开')
+        updateHandUi()
+      })
+      setHandStatus(`正在连接 ${device.name || device.id} ...`)
+      const server = await device.gatt.connect()
+      state.handServer = server
+      const service = await server.getPrimaryService(HAND_SERVICE_UUID)
+      const characteristic = await service.getCharacteristic(HAND_WRITE_CHAR_UUID)
+      state.handChar = characteristic
+      state.handQueue = Promise.resolve()
+      state.lastGestureKey = ''
+      setHandStatus(`已连接 ${device.name || device.id}，写特征就绪`)
+      logCommand(`已连接 ${device.name || device.id}`)
+    } catch (err) {
+      state.handServer = null
+      state.handChar = null
+      setHandStatus(`连接失败: ${err.name || 'Error'}: ${err.message || err}`)
+      logCommand(`连接失败: ${err.message || err}`)
+    } finally {
+      state.handConnecting = false
+      updateHandUi()
+    }
+  }
+
+  async function disconnectHand() {
+    try {
+      if (state.handServer && state.handServer.connected) {
+        state.handServer.disconnect()
+      }
+    } catch (err) {
+      logCommand(`断开异常: ${err.message || err}`)
+    }
+    state.handServer = null
+    state.handChar = null
+    state.lastGestureKey = ''
+    setHandStatus('未连接')
+    updateHandUi()
+  }
+
+  function buildControlPanel() {
+    const presetWrap = document.getElementById('presetButtons')
+    if (presetWrap) {
+      presetWrap.innerHTML = ''
+      for (const name of QUICK_MESSAGES) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.dataset.preset = name
+        button.textContent = name
+        button.disabled = true
+        button.addEventListener('click', () => sendPreset(name))
+        presetWrap.appendChild(button)
+      }
+    }
+
+    const sliderWrap = document.getElementById('fingerSliders')
+    if (sliderWrap) {
+      sliderWrap.innerHTML = ''
+      FINGER_LABELS.forEach((label, index) => {
+        const row = document.createElement('div')
+        row.className = 'rh-slider-row'
+
+        const name = document.createElement('span')
+        name.textContent = label
+
+        const slider = document.createElement('input')
+        slider.type = 'range'
+        slider.min = '0'
+        slider.max = '100'
+        slider.step = '1'
+        slider.value = '0'
+        slider.id = `finger-slider-${index}`
+        slider.addEventListener('input', (event) => onFingerSlider(index, event.target.value))
+
+        const value = document.createElement('span')
+        value.id = `finger-value-${index}`
+        value.textContent = '0'
+
+        row.appendChild(name)
+        row.appendChild(slider)
+        row.appendChild(value)
+        sliderWrap.appendChild(row)
+      })
+    }
+  }
+
   function buildReport() {
     const info = detectPlatform()
     return JSON.stringify({
@@ -1296,6 +1931,20 @@ const meta = {
       platform: info,
       modelUrl: MODEL_PATH,
       mediapipe: CDN_BASE,
+      hand: {
+        serviceUuid: HAND_SERVICE_UUID,
+        writeCharUuid: HAND_WRITE_CHAR_UUID,
+        connected: handConnected(),
+        deviceName: state.handDevice ? state.handDevice.name || state.handDevice.id : '',
+        writeWithResponse: Boolean(
+          document.getElementById('writeWithResponse') &&
+            document.getElementById('writeWithResponse').checked
+        ),
+        appendNewline: Boolean(
+          document.getElementById('appendNewline') &&
+            document.getElementById('appendNewline').checked
+        )
+      },
       results: TESTS.map((t) => ({
         id: t.id,
         name: t.name,
@@ -1361,10 +2010,49 @@ const meta = {
   document.getElementById('runAuto').addEventListener('click', runAutoTests)
   document.getElementById('copyReport').addEventListener('click', copyReport)
   document.getElementById('downloadReport').addEventListener('click', downloadReport)
+  document.getElementById('clearModelCache').addEventListener('click', async () => {
+    const ok = await clearModelCache()
+    state.modelBuffer = null
+    document.getElementById('summary').textContent = ok
+      ? '已清除本地模型缓存，下次加载会重新下载'
+      : '清除模型缓存失败或当前浏览器不支持 indexedDB'
+  })
   document.getElementById('stopGesture').addEventListener('click', () => stopGestureDetection())
   document.getElementById('minimizeCamera').addEventListener('click', toggleCameraMinimized)
   document.getElementById('closeCamera').addEventListener('click', closeCameraPanel)
   setupCameraDrag()
+
+  document.getElementById('connectHand').addEventListener('click', connectHand)
+  document.getElementById('disconnectHand').addEventListener('click', disconnectHand)
+  document.getElementById('sendCustom').addEventListener('click', () => {
+    const input = document.getElementById('customCommand')
+    const text = (input.value || '').trim()
+    if (!text) return
+    enqueueCommand(text)
+  })
+  document.getElementById('customCommand').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      document.getElementById('sendCustom').click()
+    }
+  })
+  document.getElementById('clearLog').addEventListener('click', () => {
+    document.getElementById('commandLog').textContent = '暂无指令'
+  })
+
+  buildControlPanel()
+  updateHandUi()
+
+  window.addEventListener('resize', () => {
+    const panel = document.getElementById('camera-preview')
+    if (!panel || panel.hidden || !panel.style.left) return
+    const maxLeft = Math.max(6, window.innerWidth - panel.offsetWidth - 6)
+    const maxTop = Math.max(6, window.innerHeight - 48)
+    const left = parseFloat(panel.style.left) || 0
+    const top = parseFloat(panel.style.top) || 0
+    panel.style.left = `${Math.min(maxLeft, Math.max(6, left))}px`
+    panel.style.top = `${Math.min(maxTop, Math.max(6, top))}px`
+  })
 
   renderTests()
   updateSummary()
@@ -1373,6 +2061,13 @@ const meta = {
     stopCamera()
     if (state.bleServer && state.bleServer.connected) {
       state.bleServer.disconnect().catch(() => {})
+    }
+    if (state.handServer && state.handServer.connected) {
+      try {
+        state.handServer.disconnect()
+      } catch (err) {
+        // 页面即将卸载，忽略断开异常。
+      }
     }
   })
 </script>
