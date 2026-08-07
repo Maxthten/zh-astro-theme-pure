@@ -1,0 +1,2073 @@
+---
+import PageLayout from '@/layouts/BaseLayout.astro'
+
+const meta = {
+  title: '机械手环境测试',
+  description: '逐步检测摄像头、MediaPipe 手势识别、Web Bluetooth 和 BLE 设备连接能力'
+}
+---
+
+<PageLayout {meta}>
+  <main class="rh-test">
+    <section class="rh-hero">
+      <h1>机械手环境测试</h1>
+      <p>这个页面按步骤检查当前浏览器能否完成摄像头、手势识别、蓝牙发现与 BLE 连接。每步都会记录通过、警告、失败和错误详情。</p>
+      <div class="rh-actions">
+        <button id="runAuto" type="button">自动环境检测</button>
+        <button id="copyReport" type="button">复制测试报告</button>
+        <button id="downloadReport" type="button">下载 JSON 报告</button>
+        <button id="clearModelCache" type="button">清除模型缓存</button>
+      </div>
+      <div id="summary" class="rh-summary">等待检测</div>
+      <div id="model-loading" class="rh-loading" hidden>
+        <div id="model-loading-text">正在加载手部模型</div>
+        <div class="rh-progress"><div id="model-progress-bar"></div></div>
+      </div>
+    </section>
+
+    <section class="rh-preview" id="camera-preview" hidden>
+      <div class="rh-preview-header" id="cameraDragHandle">
+        <h2>摄像头预览</h2>
+        <div class="rh-preview-header-actions">
+          <button id="minimizeCamera" type="button">收起</button>
+          <button id="closeCamera" type="button">关闭</button>
+        </div>
+      </div>
+      <div id="camera-body">
+        <div class="rh-preview-box">
+          <video id="camera-video" autoplay muted playsinline></video>
+          <canvas id="gesture-canvas"></canvas>
+        </div>
+        <p id="gesture-status">未开始识别</p>
+        <p id="gesture-debug" class="rh-debug">调试: 未启动</p>
+        <label class="rh-inline-check">
+          <input id="gestureDriveHand" type="checkbox" /> 用手势驱动机械手
+        </label>
+        <div class="rh-actions">
+          <button id="stopGesture" type="button" hidden>停止手势识别</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tests" class="rh-tests" aria-live="polite"></section>
+
+    <section class="rh-control" id="control-panel">
+      <h2>机械手指令测试</h2>
+      <p class="rh-control-hint">
+        以下按键与桌面上位机保持一致：预设手势会按 PRESET_ANGLES 依次发送 5 条
+        <code>servo_i=angle</code>，也可以单独发送固件内置手势名或自定义文本。
+      </p>
+
+      <div class="rh-field">
+        <label for="deviceNameInput">设备名</label>
+        <input id="deviceNameInput" type="text" value="robhand" autocomplete="off" spellcheck="false" />
+      </div>
+
+      <div class="rh-field-row">
+        <label><input id="writeWithResponse" type="checkbox" /> 写入等待响应</label>
+        <label><input id="appendNewline" type="checkbox" /> 命令追加换行</label>
+        <label><input id="usePresetAngles" type="checkbox" checked /> 预设手势发送 servo 角度</label>
+      </div>
+
+      <div class="rh-actions">
+        <button id="connectHand" type="button">连接机械手</button>
+        <button id="disconnectHand" type="button" disabled>断开连接</button>
+      </div>
+      <div id="handStatus" class="rh-summary">未连接</div>
+
+      <h3>预设手势</h3>
+      <div id="presetButtons" class="rh-grid"></div>
+
+      <h3>五指滑块（0-100 映射到 0-180 度）</h3>
+      <div id="fingerSliders" class="rh-sliders"></div>
+
+      <h3>自定义命令</h3>
+      <div class="rh-actions">
+        <input id="customCommand" type="text" placeholder="例如 servo_0=90 或 fist" autocomplete="off" spellcheck="false" />
+        <button id="sendCustom" type="button" disabled>发送</button>
+      </div>
+
+      <h3>指令日志</h3>
+      <div class="rh-actions">
+        <button id="clearLog" type="button">清空日志</button>
+      </div>
+      <pre id="commandLog" class="rh-log">暂无指令</pre>
+    </section>
+  </main>
+</PageLayout>
+
+<style is:global>
+  .rh-test {
+    margin: 0 auto;
+    max-width: 860px;
+    padding: 24px 0 40px;
+  }
+
+  .rh-hero {
+    margin-bottom: 22px;
+  }
+
+  .rh-hero h1 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    line-height: 1.3;
+  }
+
+  .rh-hero p {
+    margin: 0 0 14px;
+    line-height: 1.7;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .rh-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .rh-actions button,
+  .rh-action-btn {
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    padding: 9px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+
+  .rh-actions button:hover,
+  .rh-action-btn:hover {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
+
+  .rh-actions button:disabled,
+  .rh-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .rh-summary {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    font-size: 14px;
+  }
+
+  .rh-loading {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+  }
+
+  .rh-loading div:first-child {
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .rh-progress {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: hsl(var(--muted));
+  }
+
+  #model-progress-bar {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+    transition: width 0.2s ease;
+  }
+
+  .rh-preview {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 60;
+    width: min(280px, calc(100vw - 28px));
+    padding: 8px 10px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 10px;
+    background: hsl(var(--card));
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  }
+
+  .rh-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    margin-bottom: 8px;
+  }
+
+  .rh-preview-header:active {
+    cursor: grabbing;
+  }
+
+  .rh-preview-header h2 {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .rh-preview-header-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .rh-preview-header-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .rh-preview.rh-preview--minimized {
+    width: min(190px, calc(100vw - 20px));
+  }
+
+  .rh-preview--minimized #camera-body {
+    display: none;
+  }
+
+  .rh-preview-box {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    border: 1px solid hsl(var(--border));
+    background: #111;
+  }
+
+  #camera-video,
+  #gesture-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+
+  #camera-video {
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  #gesture-canvas {
+    z-index: 2;
+    pointer-events: none;
+    background: transparent;
+  }
+
+  #gesture-status {
+    margin: 10px 0 0;
+    font-size: 14px;
+  }
+
+  .rh-debug {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .rh-inline-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  .rh-tests {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rh-control {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .rh-control h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+
+  .rh-control h3 {
+    margin: 18px 0 8px;
+    font-size: 14px;
+  }
+
+  .rh-control-hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .rh-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .rh-field label {
+    flex: 0 0 auto;
+    font-size: 13px;
+  }
+
+  .rh-field input[type='text'],
+  .rh-control input[type='text'] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: 14px;
+  }
+
+  .rh-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .rh-field-row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
+  }
+
+  .rh-grid button {
+    padding: 10px 8px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .rh-grid button:hover:not(:disabled) {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
+
+  .rh-grid button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .rh-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rh-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rh-slider-row span:first-child {
+    flex: 0 0 56px;
+    font-size: 13px;
+  }
+
+  .rh-slider-row input[type='range'] {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .rh-slider-row span:last-child {
+    flex: 0 0 46px;
+    text-align: right;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rh-log {
+    max-height: 220px;
+    margin: 0;
+    padding: 10px 12px;
+    overflow: auto;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .rh-test-row {
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--card));
+    padding: 12px 14px;
+  }
+
+  .rh-test-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .rh-test-title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .rh-test-meta {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .rh-status {
+    flex: 0 0 auto;
+    min-width: 64px;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .rh-status.pending { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+  .rh-status.running { background: hsl(var(--primary) / 0.16); color: hsl(var(--primary)); }
+  .rh-status.pass { background: hsl(142 70% 45% / 0.16); color: hsl(142 70% 35%); }
+  .rh-status.warn { background: hsl(38 92% 50% / 0.16); color: hsl(38 92% 35%); }
+  .rh-status.fail { background: hsl(0 84% 60% / 0.14); color: hsl(0 84% 48%); }
+  .rh-status.skip { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+  .rh-test-detail {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: hsl(var(--muted-foreground));
+    word-break: break-word;
+  }
+
+  .rh-error {
+    margin: 10px 0 0;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid hsl(0 84% 60% / 0.35);
+    background: hsl(0 84% 60% / 0.06);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .rh-error strong {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .rh-action-row {
+    margin-top: 10px;
+  }
+
+  @media (max-width: 640px) {
+    .rh-hero h1 {
+      font-size: 22px;
+    }
+
+    .rh-actions {
+      flex-direction: column;
+    }
+
+    .rh-actions button {
+      width: 100%;
+    }
+
+    .rh-test-head {
+      flex-direction: column;
+    }
+
+    .rh-preview {
+      width: min(230px, calc(100vw - 20px));
+      padding: 6px 8px;
+    }
+
+    .rh-preview-header h2 {
+      font-size: 12px;
+    }
+
+    .rh-preview-header-actions button {
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+
+    .rh-debug {
+      font-size: 10px;
+    }
+  }
+</style>
+
+<script is:inline type="module">
+  const MODEL_PATH = '/robothand/hand_landmarker.task'
+  const MODEL_GZ_PATH = '/robothand/hand_landmarker.task.gz'
+  const CDN_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1'
+  const HAND_CONNECTIONS = [
+    [0, 1], [1, 2], [2, 3], [3, 4],
+    [0, 5], [5, 6], [6, 7], [7, 8],
+    [0, 9], [9, 10], [10, 11], [11, 12],
+    [0, 13], [13, 14], [14, 15], [15, 16],
+    [0, 17], [17, 18], [18, 19], [19, 20]
+  ]
+  const COMMON_SERVICES = [
+    '00001800-0000-1000-8000-00805f9b34fb',
+    '00001801-0000-1000-8000-00805f9b34fb',
+    '0000180a-0000-1000-8000-00805f9b34fb',
+    '0000180d-0000-1000-8000-00805f9b34fb',
+    '0000180f-0000-1000-8000-00805f9b34fb'
+  ]
+
+  // 与 ESP32 固件和桌面上位机保持一致的协议常量。
+  const HAND_SERVICE_UUID = '89d60870-9908-4472-8f8c-e5b3e6573cd1'
+  const HAND_WRITE_CHAR_UUID = '39dea685-a63e-44b2-8819-9a202581f8fe'
+  const FINGER_LABELS = ['拇指', '食指', '中指', '无名指', '小指']
+  const QUICK_MESSAGES = [
+    'five', 'four', 'three', 'two', 'one',
+    'ok', 'rock', 'love', 'fist', 'scratch', 'come'
+  ]
+  const PRESET_ANGLES = {
+    five: [0, 0, 0, 0, 0],
+    four: [100, 0, 0, 0, 0],
+    three: [100, 0, 0, 0, 100],
+    two: [100, 0, 0, 100, 100],
+    one: [100, 0, 100, 100, 100],
+    ok: [0, 100, 100, 100, 100],
+    rock: [100, 0, 100, 100, 0],
+    love: [0, 0, 100, 100, 0],
+    fist: [100, 100, 100, 100, 100],
+    scratch: [0, 100, 0, 0, 0],
+    come: [0, 0, 100, 0, 0]
+  }
+  const GESTURE_MIN_INTERVAL_MS = 60
+  const DETECT_INTERVAL_MS = 55
+  const MODEL_CACHE_DB = 'robothand-model-cache'
+  const MODEL_CACHE_STORE = 'models'
+  const MODEL_CACHE_KEY = 'hand_landmarker.task'
+
+  const state = {
+    cameraStream: null,
+    modelBuffer: null,
+    landmarker: null,
+    bleDevice: null,
+    bleServer: null,
+    bleServices: [],
+    gestureRaf: 0,
+    gestureRunning: false,
+    gestureSeen: false,
+    gestureFrames: 0,
+    gestureHandFrames: 0,
+    gestureLastDebug: 0,
+    cameraMinimized: false,
+    gestureLastDetect: 0,
+    gestureTimestamp: 0,
+    handDevice: null,
+    handServer: null,
+    handChar: null,
+    handQueue: Promise.resolve(),
+    handConnecting: false,
+    sliderValues: [0, 0, 0, 0, 0],
+    lastGestureKey: '',
+    lastGestureSentAt: 0,
+    busy: false
+  }
+
+  const TESTS = [
+    {
+      id: 'secure-context',
+      name: '安全上下文',
+      group: '环境',
+      auto: true,
+      expected: '页面运行在 HTTPS 或 localhost',
+      run: async () => {
+        const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+        const ok = window.isSecureContext && (location.protocol === 'https:' || local)
+        const lanIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(location.hostname)
+        return {
+          status: ok ? 'pass' : 'fail',
+          actual: ok ? `${location.origin} 安全上下文正常` : `${location.href} 不是安全上下文`,
+          suggestion: ok
+            ? ''
+            : lanIp
+              ? '安卓手机通过局域网 IP 访问时必须使用 HTTPS；请部署到 Cloudflare Pages，或使用 HTTPS 隧道访问。'
+              : '请通过 HTTPS 部署到 Cloudflare Pages，或使用 localhost 调试。'
+        }
+      }
+    },
+    {
+      id: 'platform',
+      name: '浏览器与平台识别',
+      group: '环境',
+      auto: true,
+      expected: '能识别当前浏览器和操作系统',
+      run: async () => {
+        const info = detectPlatform()
+        return { status: 'pass', actual: `${info.browser} / ${info.os}` }
+      }
+    },
+    {
+      id: 'bluetooth-api',
+      name: 'Web Bluetooth API',
+      group: '蓝牙',
+      auto: true,
+      expected: 'navigator.bluetooth 存在',
+      run: async () => {
+        if (!('bluetooth' in navigator)) {
+          if (!window.isSecureContext) {
+            return {
+              status: 'fail',
+              actual: '非安全上下文，Web Bluetooth 被浏览器禁用',
+              suggestion: '请使用 HTTPS 或 localhost 访问，例如先部署到 Cloudflare Pages。'
+            }
+          }
+          const info = detectPlatform()
+          if (info.ios) {
+            return {
+              status: 'warn',
+              actual: '当前为 iOS Safari，没有 Web Bluetooth',
+              suggestion: '请复制本页链接，在 Bluefy 中打开后重新测试。'
+            }
+          }
+          throw new Error('当前浏览器不支持 Web Bluetooth API')
+        }
+        return { status: 'pass', actual: 'navigator.bluetooth 可用' }
+      }
+    },
+    {
+      id: 'media-devices',
+      name: '摄像头 API',
+      group: '摄像头',
+      auto: true,
+      expected: 'navigator.mediaDevices.getUserMedia 存在',
+      run: async () => {
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+          if (!window.isSecureContext) {
+            return {
+              status: 'fail',
+              actual: '非安全上下文，getUserMedia 被浏览器禁用',
+              suggestion: '请使用 HTTPS 或 localhost 访问，例如先部署到 Cloudflare Pages。'
+            }
+          }
+          throw new Error('getUserMedia 不存在')
+        }
+        return { status: 'pass', actual: 'navigator.mediaDevices.getUserMedia 可用' }
+      }
+    },
+    {
+      id: 'wasm',
+      name: 'WebAssembly',
+      group: '运行环境',
+      auto: true,
+      expected: 'WebAssembly 可以实例化',
+      run: async () => {
+        if (typeof WebAssembly === 'undefined') {
+          throw new Error('当前浏览器没有 WebAssembly')
+        }
+        await WebAssembly.instantiate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]))
+        return { status: 'pass', actual: 'WebAssembly 可用' }
+      }
+    },
+    {
+      id: 'webgl',
+      name: 'WebGL',
+      group: '运行环境',
+      auto: true,
+      expected: 'WebGL2 或 WebGL1 可用',
+      run: async () => {
+        const canvas = document.createElement('canvas')
+        const gl2 = canvas.getContext('webgl2')
+        const gl1 = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        if (gl2) return { status: 'pass', actual: 'WebGL2 可用' }
+        if (gl1) return { status: 'warn', actual: '仅 WebGL1 可用，MediaPipe 可能降低画质', suggestion: '建议使用较新的 Chrome/Edge 或 iOS 系统版本。' }
+        throw new Error('WebGL 不可用')
+      }
+    },
+    {
+      id: 'bluefy-extras',
+      name: 'Bluefy / 浏览器扩展能力',
+      group: '环境',
+      auto: true,
+      expected: '检测 Bluefy 提供的扩展接口',
+      run: async () => {
+        const found = []
+        const bt = navigator.bluetooth
+        if (bt && typeof bt.getDevices === 'function') found.push('getDevices')
+        if (bt && typeof bt.setScreenDimEnabled === 'function') found.push('setScreenDimEnabled')
+        if (window.BLENative && typeof window.BLENative.notifyAppState === 'function') found.push('BLENative.notifyAppState')
+        if (!found.length) {
+          const info = detectPlatform()
+          if (info.ios && !('bluetooth' in navigator)) {
+            return { status: 'warn', actual: '未发现 Bluefy 扩展', suggestion: 'iPhone 请在 Bluefy 中打开以启用 Web Bluetooth。' }
+          }
+          return { status: 'pass', actual: '无 Bluefy 扩展，符合普通 Chrome/Edge 行为' }
+        }
+        return { status: 'pass', actual: found.join(', ') }
+      }
+    },
+    {
+      id: 'camera-open',
+      name: '打开摄像头',
+      group: '摄像头',
+      auto: false,
+      interactive: true,
+      actionLabel: '打开摄像头',
+      expected: '能打开前置摄像头并显示视频流',
+      run: async () => {
+        await stopCamera()
+        let stream
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            audio: false
+          })
+        } catch (err) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        }
+        state.cameraStream = stream
+        const video = document.getElementById('camera-video')
+        video.srcObject = stream
+        await video.play()
+        showCameraPanel()
+        const size = `${video.videoWidth || 0}x${video.videoHeight || 0}`
+        if (!video.videoWidth || !video.videoHeight) {
+          throw new Error('摄像头已打开但没有视频尺寸')
+        }
+        return { status: 'pass', actual: `视频流正常 ${size}` }
+      }
+    },
+    {
+      id: 'model-asset',
+      name: '手部模型加载',
+      group: '手势识别',
+      auto: true,
+      interactive: true,
+      actionLabel: '加载手部模型',
+      expected: 'hand_landmarker.task 能下载且大小正常',
+      run: async () => {
+        setModelLoading('正在准备手部模型（首次约 5.5 MB，之后走本地缓存）', 0)
+        const fromCache = Boolean(await readModelFromCache())
+        try {
+          const buffer = await loadModelBuffer()
+          if (buffer.byteLength < 1000000) {
+            throw new Error(`模型文件过小: ${buffer.byteLength} bytes`)
+          }
+          state.modelBuffer = buffer
+          return {
+            status: 'pass',
+            actual: `${(buffer.byteLength / 1048576).toFixed(1)} MB / 来源: ${fromCache ? '本地缓存' : '网络下载并已缓存'}`
+          }
+        } finally {
+          hideModelLoading()
+        }
+      }
+    },
+    {
+      id: 'mediapipe-init',
+      name: 'MediaPipe 初始化',
+      group: '手势识别',
+      auto: true,
+      interactive: true,
+      requires: ['model-asset'],
+      actionLabel: '初始化 MediaPipe',
+      expected: '能加载 MediaPipe WASM 并创建 HandLandmarker',
+      run: async () => {
+        if (!state.modelBuffer) {
+          setModelLoading('正在重新下载手部模型', 0)
+          try {
+            state.modelBuffer = await loadModelBuffer()
+          } finally {
+            hideModelLoading()
+          }
+        }
+        setModelLoading('正在初始化 MediaPipe WASM，首次可能需要 10-60 秒', 100)
+        try {
+          if (state.landmarker && typeof state.landmarker.close === 'function') {
+            try {
+              state.landmarker.close()
+            } catch (err) {
+              // 旧实例关闭失败不影响新实例创建。
+            }
+            state.landmarker = null
+          }
+          const { FilesetResolver, HandLandmarker } = await import(`${CDN_BASE}/vision_bundle.mjs`)
+          const vision = await FilesetResolver.forVisionTasks(`${CDN_BASE}/wasm`)
+          const landmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetBuffer: new Uint8Array(state.modelBuffer) },
+            runningMode: 'VIDEO',
+            numHands: 1,
+            minHandDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+          })
+          state.landmarker = landmarker
+          // WASM 已持有模型副本，释放这块 7.5 MB 引用以降低手机端内存压力。
+          state.modelBuffer = null
+          return { status: 'pass', actual: 'HandLandmarker 创建成功' }
+        } finally {
+          hideModelLoading()
+        }
+      }
+    },
+    {
+      id: 'gesture-detect',
+      name: '手势识别',
+      group: '手势识别',
+      auto: false,
+      interactive: true,
+      requires: ['camera-open', 'mediapipe-init'],
+      actionLabel: '开始手势识别',
+      expected: '能从摄像头画面识别出手部关键点和手势',
+      run: async () => {
+        if (!state.cameraStream) throw new Error('请先完成“打开摄像头”')
+        if (!state.landmarker) throw new Error('请先完成“MediaPipe 初始化”')
+        return runGestureDetection()
+      }
+    },
+    {
+      id: 'ble-discover',
+      name: '蓝牙设备发现',
+      group: '蓝牙',
+      auto: false,
+      interactive: true,
+      actionLabel: '扫描附近 BLE 设备',
+      expected: '能弹出系统蓝牙选择框并选择一个设备',
+      run: async () => {
+        if (!('bluetooth' in navigator)) throw new Error('当前浏览器没有 Web Bluetooth')
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: COMMON_SERVICES
+        })
+        state.bleDevice = device
+        device.addEventListener('gattserverdisconnected', () => {
+          state.bleServer = null
+          patch('ble-connect', {
+            status: 'warn',
+            actual: 'BLE 设备已断开',
+            suggestion: '重新执行 BLE 连接测试。'
+          })
+        })
+        return { status: 'pass', actual: `${device.name || '未命名设备'} / ${device.id}` }
+      }
+    },
+    {
+      id: 'ble-connect',
+      name: 'BLE 连接',
+      group: '蓝牙',
+      auto: false,
+      interactive: true,
+      requires: ['ble-discover'],
+      actionLabel: '连接该 BLE 设备',
+      expected: '能连接用户选择的 BLE 设备',
+      run: async () => {
+        if (!state.bleDevice) throw new Error('请先完成“蓝牙设备发现”')
+        state.bleServer = await state.bleDevice.gatt.connect()
+        return { status: 'pass', actual: `已连接 ${state.bleDevice.name || state.bleDevice.id}` }
+      }
+    },
+    {
+      id: 'ble-services',
+      name: 'BLE 服务与特征读取',
+      group: '蓝牙',
+      auto: false,
+      interactive: true,
+      requires: ['ble-connect'],
+      actionLabel: '读取服务与特征',
+      expected: '能列出服务和特征，并尝试读取标准设备名',
+      run: async () => {
+        if (!state.bleServer) throw new Error('请先完成“BLE 连接”')
+        const services = await state.bleServer.getPrimaryServices()
+        state.bleServices = services
+        if (!services.length) {
+          return {
+            status: 'warn',
+            actual: '已连接但没有可访问服务',
+            suggestion: '部分浏览器只允许访问 optionalServices 中声明的服务，请更换测试设备或重新扫描。'
+          }
+        }
+        let charCount = 0
+        for (const service of services) {
+          try {
+            const chars = await service.getCharacteristics()
+            charCount += chars.length
+          } catch (err) {
+            charCount += 0
+          }
+        }
+        let deviceName = '未读取'
+        try {
+          const ga = await state.bleServer.getPrimaryService('00001800-0000-1000-8000-00805f9b34fb')
+          const nameChar = await ga.getCharacteristic('00002a00-0000-1000-8000-00805f9b34fb')
+          const value = await nameChar.readValue()
+          deviceName = new TextDecoder().decode(value) || '空值'
+        } catch (err) {
+          deviceName = `读取失败: ${err.name || 'Error'} ${err.message || '无详细信息'}`
+        }
+        return {
+          status: 'pass',
+          actual: `${services.length} 个服务 / ${charCount} 个特征 / 设备名: ${deviceName}`
+        }
+      }
+    },
+    {
+      id: 'combined',
+      name: '摄像头 + BLE 同时使用',
+      group: '组合',
+      auto: false,
+      interactive: true,
+      actionLabel: '检查组合状态',
+      expected: '摄像头和 BLE 能同时保持可用',
+      run: async () => {
+        if (!state.cameraStream) {
+          return { status: 'warn', actual: '摄像头未打开', suggestion: '先完成摄像头测试。' }
+        }
+        const anyBle = (state.bleServer && state.bleServer.connected) || handConnected()
+        if (!anyBle) {
+          return { status: 'warn', actual: 'BLE 未连接', suggestion: '先完成 BLE 连接测试。' }
+        }
+        return { status: 'pass', actual: '摄像头与 BLE 同时可用' }
+      }
+    },
+    {
+      id: 'hand-protocol',
+      name: '机械手协议校验',
+      group: '机械手',
+      auto: false,
+      interactive: true,
+      actionLabel: '校验机械手服务与特征',
+      expected: `能连接 robhand 并找到写特征 ${HAND_WRITE_CHAR_UUID}`,
+      run: async () => {
+        if (!handConnected()) {
+          return {
+            status: 'warn',
+            actual: '机械手未连接',
+            suggestion: '请先在下方“机械手指令测试”中点击“连接机械手”。'
+          }
+        }
+        const props = state.handChar.properties || {}
+        const writable = Boolean(props.write || props.writeWithoutResponse)
+        if (!writable) {
+          return {
+            status: 'fail',
+            actual: '找到写特征但不可写',
+            suggestion: '请确认 ESP32 固件将该特征声明为 PROPERTY_WRITE | PROPERTY_WRITE_NR。'
+          }
+        }
+        const modes = []
+        if (props.write) modes.push('write')
+        if (props.writeWithoutResponse) modes.push('write-without-response')
+        return {
+          status: 'pass',
+          actual: `${state.handDevice.name || state.handDevice.id} / 写模式: ${modes.join(', ')}`
+        }
+      }
+    },
+    {
+      id: 'hand-command',
+      name: '机械手指令下发',
+      group: '机械手',
+      auto: false,
+      interactive: true,
+      requires: ['hand-protocol'],
+      actionLabel: '发送 servo 测试指令',
+      expected: '能写入 servo 命令，且机械手实际动作',
+      run: async () => {
+        if (!handConnected()) {
+          return { status: 'warn', actual: '机械手未连接', suggestion: '请先连接机械手。' }
+        }
+        await enqueueCommand('servo_0=0')
+        await enqueueCommand('servo_0=90')
+        await enqueueCommand('servo_0=180')
+        await enqueueCommand('servo_0=0')
+        return {
+          status: 'warn',
+          actual: '已写入 servo_0 的 0/90/180/0 序列',
+          suggestion: '写入成功不代表舵机动作，请人工确认拇指是否摆动，然后自行判定通过。'
+        }
+      }
+    },
+    {
+      id: 'report',
+      name: '生成测试报告',
+      group: '报告',
+      auto: false,
+      interactive: true,
+      actionLabel: '生成 JSON 报告',
+      expected: '汇总当前所有测试结果',
+      run: async () => {
+        return { status: 'pass', actual: `报告共 ${TESTS.length} 项，可点击“复制测试报告”导出` }
+      }
+    }
+  ]
+
+  const byId = new Map(TESTS.map((t) => [t.id, t]))
+
+  function setModelLoading(text, percent) {
+    const wrap = document.getElementById('model-loading')
+    const textEl = document.getElementById('model-loading-text')
+    const bar = document.getElementById('model-progress-bar')
+    if (!wrap || !textEl || !bar) return
+    wrap.hidden = false
+    textEl.textContent = text
+    bar.style.width = `${Math.max(0, Math.min(100, percent))}%`
+  }
+
+  function hideModelLoading() {
+    const wrap = document.getElementById('model-loading')
+    if (wrap) wrap.hidden = true
+  }
+
+  function fetchModelWithProgress(url) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('GET', url, true)
+      xhr.responseType = 'arraybuffer'
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable && event.total) {
+          const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
+          setModelLoading(
+            `正在下载手部模型压缩包（约 ${(event.total / 1048576).toFixed(1)} MB） ${percent}%`,
+            percent
+          )
+        }
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.response)
+        } else {
+          reject(new Error(`模型下载失败 HTTP ${xhr.status}`))
+        }
+      }
+      xhr.onerror = () => reject(new Error('模型下载网络错误'))
+      xhr.onabort = () => reject(new Error('模型下载被取消'))
+      xhr.send()
+    })
+  }
+
+  async function loadModelBuffer() {
+    const cached = await readModelFromCache()
+    if (cached && cached.byteLength >= 1000000) {
+      setModelLoading('已从本地缓存读取手部模型', 100)
+      return cached
+    }
+
+    let buffer = null
+    if (typeof DecompressionStream === 'function') {
+      try {
+        const payload = await fetchModelWithProgress(MODEL_GZ_PATH)
+        buffer = await maybeGunzip(payload)
+      } catch (err) {
+        buffer = null
+      }
+    }
+    if (!buffer || buffer.byteLength < 1000000) {
+      buffer = await fetchModelWithProgress(MODEL_PATH)
+    }
+    await writeModelToCache(buffer)
+    return buffer
+  }
+
+  // 服务器可能给 .gz 带上 Content-Encoding: gzip，此时浏览器已自动解压。
+  // 用 gzip 魔数判断是否仍需手动解压，避免重复解压导致回退再下载一次。
+  async function maybeGunzip(payload) {
+    const head = new Uint8Array(payload.slice(0, 2))
+    const isGzip = head[0] === 0x1f && head[1] === 0x8b
+    if (!isGzip) return payload
+    const stream = new Blob([payload]).stream().pipeThrough(new DecompressionStream('gzip'))
+    return new Response(stream).arrayBuffer()
+  }
+
+  function openModelCache() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('indexedDB 不可用'))
+        return
+      }
+      const request = indexedDB.open(MODEL_CACHE_DB, 1)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        if (!db.objectStoreNames.contains(MODEL_CACHE_STORE)) {
+          db.createObjectStore(MODEL_CACHE_STORE)
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error || new Error('打开缓存失败'))
+    })
+  }
+
+  async function readModelFromCache() {
+    try {
+      const db = await openModelCache()
+      return await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readonly')
+        const req = tx.objectStore(MODEL_CACHE_STORE).get(MODEL_CACHE_KEY)
+        req.onsuccess = () => resolve(req.result || null)
+        req.onerror = () => resolve(null)
+      })
+    } catch (err) {
+      return null
+    }
+  }
+
+  async function writeModelToCache(buffer) {
+    try {
+      const db = await openModelCache()
+      await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite')
+        tx.objectStore(MODEL_CACHE_STORE).put(buffer, MODEL_CACHE_KEY)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => resolve()
+        tx.onabort = () => resolve()
+      })
+    } catch (err) {
+      // 缓存写入失败不影响本次使用。
+    }
+  }
+
+  async function clearModelCache() {
+    try {
+      const db = await openModelCache()
+      await new Promise((resolve) => {
+        const tx = db.transaction(MODEL_CACHE_STORE, 'readwrite')
+        tx.objectStore(MODEL_CACHE_STORE).delete(MODEL_CACHE_KEY)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => resolve()
+        tx.onabort = () => resolve()
+      })
+      return true
+    } catch (err) {
+      return false
+    }
+  }
+
+  function detectPlatform() {
+    const ua = navigator.userAgent || ''
+    const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    const android = /Android/i.test(ua)
+    let os = 'Windows'
+    if (ios) os = 'iOS'
+    else if (android) os = 'Android'
+    else if (/Mac OS X/i.test(ua)) os = 'macOS'
+    else if (/Linux/i.test(ua)) os = 'Linux'
+
+    let browser = '未知浏览器'
+    if (/Edg\//i.test(ua)) browser = 'Microsoft Edge'
+    else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Chrome / Chromium'
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox'
+    else if (/Bluefy/i.test(ua)) browser = 'Bluefy'
+    else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) {
+      browser = ios && 'bluetooth' in navigator ? 'Bluefy / Web BLE 浏览器' : 'Safari'
+    }
+    else if (ios && 'bluetooth' in navigator) browser = 'iOS Web BLE 浏览器'
+    return { os, browser, ios, android, ua }
+  }
+
+  function patch(id, data) {
+    const test = byId.get(id)
+    if (!test) return
+    Object.assign(test, data)
+    renderTest(id)
+    updateSummary()
+  }
+
+  function renderTest(id) {
+    const test = byId.get(id)
+    const row = document.querySelector(`[data-test-id="${id}"]`)
+    if (!row) return
+    const statusEl = row.querySelector('.rh-status')
+    statusEl.className = `rh-status ${test.status || 'pending'}`
+    statusEl.textContent = statusText(test.status)
+    const detailEl = row.querySelector('.rh-test-detail')
+    detailEl.textContent = test.actual ? `实际: ${test.actual}` : '尚未执行'
+    const errBox = row.querySelector('.rh-error')
+    if (test.errorMessage || test.errorName) {
+      errBox.hidden = false
+      errBox.innerHTML = ''
+      const strong = document.createElement('strong')
+      strong.textContent = `错误位置: ${test.name}`
+      errBox.appendChild(strong)
+      const line = document.createElement('div')
+      line.textContent = `${test.errorName || 'Error'}: ${test.errorMessage || '未知错误'}`
+      errBox.appendChild(line)
+      if (test.stack) {
+        const stack = document.createElement('div')
+        stack.textContent = test.stack.split('\n').slice(0, 4).join('\n')
+        errBox.appendChild(stack)
+      }
+    } else {
+      errBox.hidden = true
+      errBox.innerHTML = ''
+    }
+    const suggestion = row.querySelector('.rh-suggestion')
+    suggestion.textContent = test.suggestion ? `建议: ${test.suggestion}` : ''
+    const btn = row.querySelector('.rh-action-btn')
+    if (btn) {
+      if (test.interactive) {
+        btn.textContent = test.actionLabel || '执行'
+      } else if (test.status && test.status !== 'pending') {
+        btn.textContent = '重测'
+      } else {
+        btn.textContent = '执行'
+      }
+      btn.disabled = state.busy || test.status === 'running'
+    }
+  }
+
+  function updateButtons() {
+    for (const test of TESTS) {
+      const row = document.querySelector(`[data-test-id="${test.id}"]`)
+      const btn = row && row.querySelector('.rh-action-btn')
+      if (btn) {
+        btn.disabled = state.busy || test.status === 'running'
+      }
+    }
+  }
+
+  function statusText(status) {
+    return {
+      pending: '待测',
+      running: '运行中',
+      pass: '通过',
+      warn: '警告',
+      fail: '失败',
+      skip: '跳过'
+    }[status] || '待测'
+  }
+
+  function renderTests() {
+    const container = document.getElementById('tests')
+    container.innerHTML = ''
+    for (const test of TESTS) {
+      const row = document.createElement('article')
+      row.className = 'rh-test-row'
+      row.dataset.testId = test.id
+
+      const head = document.createElement('div')
+      head.className = 'rh-test-head'
+
+      const titleWrap = document.createElement('div')
+      const title = document.createElement('h2')
+      title.className = 'rh-test-title'
+      title.textContent = `${test.group} / ${test.name}`
+      const meta = document.createElement('p')
+      meta.className = 'rh-test-meta'
+      meta.textContent = `期望: ${test.expected}`
+      titleWrap.appendChild(title)
+      titleWrap.appendChild(meta)
+      head.appendChild(titleWrap)
+
+      const status = document.createElement('span')
+      status.className = 'rh-status pending'
+      status.textContent = '待测'
+      head.appendChild(status)
+      row.appendChild(head)
+
+      const detail = document.createElement('div')
+      detail.className = 'rh-test-detail'
+      detail.textContent = '尚未执行'
+      row.appendChild(detail)
+
+      const suggestion = document.createElement('div')
+      suggestion.className = 'rh-test-detail rh-suggestion'
+      row.appendChild(suggestion)
+
+      const error = document.createElement('div')
+      error.className = 'rh-error'
+      error.hidden = true
+      row.appendChild(error)
+
+      if (test.interactive || test.auto) {
+        const actionRow = document.createElement('div')
+        actionRow.className = 'rh-action-row'
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'rh-action-btn'
+        btn.textContent = test.interactive ? (test.actionLabel || '执行') : '执行'
+        btn.addEventListener('click', () => runTest(test.id))
+        actionRow.appendChild(btn)
+        row.appendChild(actionRow)
+      }
+
+      container.appendChild(row)
+    }
+  }
+
+  async function runAutoTests() {
+    if (state.busy) return
+    state.busy = true
+    updateButtons()
+    try {
+      for (const test of TESTS) {
+        if (!test.auto) continue
+        try {
+          await executeTest(test.id, 0)
+        } catch (err) {
+          if (test.status === 'pending' || test.status === 'running') {
+            patch(test.id, {
+              status: 'fail',
+              actual: `前置步骤未完成: ${err.message || err}`,
+              errorName: err.name || 'Error',
+              errorMessage: err.message || String(err),
+              errorStack: err.stack || '',
+              suggestion: '请先完成前置步骤，或点击对应测试项查看失败原因。'
+            })
+          }
+        }
+      }
+      updateSummary()
+    } finally {
+      state.busy = false
+      updateButtons()
+      updateSummary()
+    }
+  }
+
+  async function runTest(id) {
+    const test = byId.get(id)
+    if (!test || state.busy || test.status === 'running') return
+    state.busy = true
+    try {
+      await executeTest(id, 0)
+    } catch (err) {
+      if (test.status === 'pending' || test.status === 'running') {
+        patch(id, {
+          status: 'fail',
+          actual: `前置步骤未完成: ${err.message || err}`,
+          errorName: err.name || 'Error',
+          errorMessage: err.message || String(err),
+          errorStack: err.stack || '',
+          suggestion: '请先完成前置步骤，或点击对应测试项查看失败原因。'
+        })
+      }
+    } finally {
+      state.busy = false
+      updateButtons()
+      updateSummary()
+    }
+  }
+
+  async function executeTest(id, depth) {
+    const test = byId.get(id)
+    if (!test) return
+    if (depth > 8) throw new Error('前置步骤嵌套过深')
+    if (test.requires && test.requires.length) {
+      for (const requiredId of test.requires) {
+        const required = byId.get(requiredId)
+        if (!required) continue
+        if (required.status !== 'pass' && required.status !== 'warn') {
+          await executeTest(requiredId, depth + 1)
+          if (required.status !== 'pass' && required.status !== 'warn') {
+            throw new Error(`“${required.name}”未通过: ${required.actual || required.errorMessage || '请先执行该步骤'}`)
+          }
+        }
+      }
+    }
+    if (test.status === 'running') return
+    patch(id, {
+      status: 'running',
+      actual: '',
+      errorName: '',
+      errorMessage: '',
+      errorStack: '',
+      suggestion: ''
+    })
+    try {
+      const result = await test.run()
+      patch(id, {
+        status: result.status || 'pass',
+        actual: result.actual || '',
+        suggestion: result.suggestion || ''
+      })
+    } catch (err) {
+      patch(id, {
+        status: 'fail',
+        actual: `抛出异常: ${err.message || err}`,
+        errorName: err.name || 'Error',
+        errorMessage: err.message || String(err),
+        errorStack: err.stack || '',
+        suggestion: suggestFor(id, err)
+      })
+    }
+  }
+
+  function suggestFor(id, err) {
+    const info = detectPlatform()
+    if (err.name === 'NotAllowedError') {
+      return '权限被拒绝。请在系统设置或浏览器设置中允许摄像头/蓝牙权限。'
+    }
+    if (err.name === 'NotFoundError') {
+      return id.startsWith('camera') ? '没有检测到可用摄像头。' : '没有发现匹配的 BLE 设备。'
+    }
+    if (err.name === 'NotReadableError') {
+      return '摄像头正被其他程序占用，请关闭其他应用后重试。'
+    }
+    if (err.name === 'SecurityError') {
+      return '浏览器安全策略阻止该操作，请确认页面使用 HTTPS 并重新授权。'
+    }
+    if (err.name === 'NetworkError') {
+      return '模型或 WASM 下载失败，请检查网络后重试。'
+    }
+    if (id === 'ble-discover' && info.ios) {
+      return 'iOS 普通 Safari 不支持 Web Bluetooth，请复制链接到 Bluefy 中打开。'
+    }
+    if (id === 'mediapipe-init' && info.ios) {
+      return 'Bluefy 的 WebKit 兼容性需要真机验证；如果失败，请先测试手动 BLE 和摄像头功能。'
+    }
+    return ''
+  }
+
+  async function stopCamera() {
+    stopGestureDetection({ status: 'warn', actual: '手势识别已停止', suggestion: '摄像头被关闭或重新打开。' })
+    if (state.cameraStream) {
+      for (const track of state.cameraStream.getTracks()) track.stop()
+      state.cameraStream = null
+    }
+    const video = document.getElementById('camera-video')
+    if (video) video.srcObject = null
+    stopGestureLoop()
+  }
+
+  function stopGestureLoop() {
+    if (state.gestureRaf) cancelAnimationFrame(state.gestureRaf)
+    state.gestureRaf = 0
+  }
+
+  function runGestureDetection() {
+    if (state.gestureRunning) {
+      return { status: 'running', actual: '手势识别已在运行中' }
+    }
+    state.gestureRunning = true
+    state.gestureSeen = false
+    state.gestureFrames = 0
+    state.gestureHandFrames = 0
+    state.gestureLastDebug = 0
+    state.gestureLastDetect = 0
+    state.gestureTimestamp = 0
+    document.getElementById('stopGesture').hidden = false
+    document.getElementById('gesture-status').textContent = '正在识别，请把手放到画面中央'
+    document.getElementById('gesture-debug').textContent = '调试: 正在初始化识别循环'
+    const video = document.getElementById('camera-video')
+    const canvas = document.getElementById('gesture-canvas')
+    const ctx = canvas.getContext('2d')
+
+    const tick = () => {
+      if (!state.gestureRunning) return
+      if (document.hidden) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
+      if (video.readyState < 2) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
+      const w = video.videoWidth
+      const h = video.videoHeight
+      if (!w || !h) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
+      const now = performance.now()
+      if (now - state.gestureLastDetect < DETECT_INTERVAL_MS) {
+        state.gestureRaf = requestAnimationFrame(tick)
+        return
+      }
+      state.gestureLastDetect = now
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w
+        canvas.height = h
+      }
+      ctx.clearRect(0, 0, w, h)
+      try {
+        state.gestureFrames++
+        state.gestureTimestamp = Math.max(state.gestureTimestamp + 1, Math.round(now))
+        const result = state.landmarker.detectForVideo(video, state.gestureTimestamp)
+        const handLandmarks = result.landmarks || result.handLandmarks
+        if (handLandmarks && handLandmarks.length) {
+          state.gestureHandFrames++
+          const landmarks = handLandmarks[0]
+          drawHand(ctx, landmarks, w, h)
+          const gesture = recognize(landmarks)
+          document.getElementById('gesture-status').textContent = `识别到: ${gesture.name}`
+          state.gestureSeen = true
+          onGestureFrame(gesture)
+        } else {
+          document.getElementById('gesture-status').textContent = state.gestureSeen
+            ? '手已离开画面，请把手放回来'
+            : '等待手进入画面，请把手放到摄像头前'
+        }
+        if (state.gestureFrames - state.gestureLastDebug >= 30) {
+          state.gestureLastDebug = state.gestureFrames
+          const debugEl = document.getElementById('gesture-debug')
+          debugEl.textContent = [
+            '调试: 识别调用正常',
+            `摄像头: ${w}x${h}`,
+            `已处理帧: ${state.gestureFrames}`,
+            `检测到手帧: ${state.gestureHandFrames}`,
+            `手部结果: ${handLandmarks ? handLandmarks.length : 0}`
+          ].join('\n')
+        }
+      } catch (err) {
+        document.getElementById('gesture-debug').textContent = `调试: ${err.message || err}`
+        stopGestureDetection({ status: 'fail', actual: `识别异常: ${err.message}`, suggestion: err.message })
+        return
+      }
+      state.gestureRaf = requestAnimationFrame(tick)
+    }
+
+    state.gestureRaf = requestAnimationFrame(tick)
+    return { status: 'running', actual: '手势识别已启动，请把手放到摄像头前' }
+  }
+
+  function stopGestureDetection(result) {
+    if (!state.gestureRunning) return
+    state.gestureRunning = false
+    stopGestureLoop()
+    const stopButton = document.getElementById('stopGesture')
+    if (stopButton) stopButton.hidden = true
+    const finalResult = result || (state.gestureSeen
+      ? { status: 'pass', actual: '手势识别已停止，识别过程中已检测到手部关键点', suggestion: '' }
+      : {
+          status: 'warn',
+          actual: '停止手势识别，未检测到手部',
+          suggestion: '请把手放到摄像头画面中央、光线充足后重新开始。'
+        })
+    patch('gesture-detect', finalResult)
+    const canvas = document.getElementById('gesture-canvas')
+    const ctx = canvas && canvas.getContext('2d')
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  function showCameraPanel() {
+    const panel = document.getElementById('camera-preview')
+    const body = document.getElementById('camera-body')
+    const button = document.getElementById('minimizeCamera')
+    if (!panel || !body || !button) return
+    panel.hidden = false
+    state.cameraMinimized = false
+    panel.classList.remove('rh-preview--minimized')
+    body.hidden = false
+    button.textContent = '收起'
+  }
+
+  function toggleCameraMinimized() {
+    const panel = document.getElementById('camera-preview')
+    const body = document.getElementById('camera-body')
+    const button = document.getElementById('minimizeCamera')
+    if (!panel || !body || !button) return
+    state.cameraMinimized = !state.cameraMinimized
+    panel.classList.toggle('rh-preview--minimized', state.cameraMinimized)
+    body.hidden = state.cameraMinimized
+    button.textContent = state.cameraMinimized ? '展开' : '收起'
+  }
+
+  function closeCameraPanel() {
+    stopGestureDetection({ status: 'warn', actual: '手势识别已停止', suggestion: '摄像头已关闭。' })
+    stopCamera()
+    const panel = document.getElementById('camera-preview')
+    if (panel) panel.hidden = true
+    patch('camera-open', {
+      status: 'pending',
+      actual: '摄像头已手动关闭',
+      suggestion: '点击“打开摄像头”可重新开启。'
+    })
+  }
+
+  function setupCameraDrag() {
+    const panel = document.getElementById('camera-preview')
+    const handle = document.getElementById('cameraDragHandle')
+    if (!panel || !handle) return
+    let drag = null
+
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('button')) return
+      const rect = panel.getBoundingClientRect()
+      drag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: rect.left,
+        top: rect.top
+      }
+      handle.setPointerCapture(event.pointerId)
+    })
+
+    handle.addEventListener('pointermove', (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return
+      const nextLeft = drag.left + event.clientX - drag.startX
+      const nextTop = drag.top + event.clientY - drag.startY
+      const maxLeft = window.innerWidth - panel.offsetWidth - 6
+      const maxTop = window.innerHeight - 48
+      panel.style.left = `${Math.max(6, Math.min(maxLeft, nextLeft))}px`
+      panel.style.top = `${Math.max(6, Math.min(maxTop, nextTop))}px`
+      panel.style.right = 'auto'
+      panel.style.bottom = 'auto'
+    })
+
+    const endDrag = (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return
+      drag = null
+      if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
+        handle.releasePointerCapture(event.pointerId)
+      }
+    }
+    handle.addEventListener('pointerup', endDrag)
+    handle.addEventListener('pointercancel', endDrag)
+  }
+
+  function drawHand(ctx, landmarks, width, height) {
+    ctx.strokeStyle = '#22c55e'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    for (const [a, b] of HAND_CONNECTIONS) {
+      const p1 = landmarks[a]
+      const p2 = landmarks[b]
+      if (!p1 || !p2) continue
+      ctx.moveTo(p1.x * width, p1.y * height)
+      ctx.lineTo(p2.x * width, p2.y * height)
+    }
+    ctx.stroke()
+    ctx.fillStyle = '#ef4444'
+    for (const p of landmarks) {
+      ctx.beginPath()
+      ctx.arc(p.x * width, p.y * height, 4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  function dist(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y)
+  }
+
+  function angle3(a, b, c) {
+    const v1 = [a.x - b.x, a.y - b.y, a.z - b.z]
+    const v2 = [c.x - b.x, c.y - b.y, c.z - b.z]
+    const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+    const len = Math.hypot(...v1) * Math.hypot(...v2)
+    if (!len) return 0
+    return Math.acos(Math.max(-1, Math.min(1, dot / len))) * 180 / Math.PI
+  }
+
+  function recognize(landmarks) {
+    const tips = [4, 8, 12, 16, 20]
+    const pips = [2, 6, 10, 14, 18]
+    const wrist = landmarks[0]
+    const fingers = [0, 0, 0, 0, 0]
+    for (let i = 0; i < tips.length; i++) {
+      const tip = landmarks[tips[i]]
+      const pip = landmarks[pips[i]]
+      if (dist(tip, wrist) > dist(pip, wrist) * 0.8) fingers[i] = 1
+    }
+    fingers[0] = angle3(landmarks[2], landmarks[3], landmarks[4]) > 160 ? 1 : 0
+    const count = fingers.reduce((sum, v) => sum + v, 0)
+    let name = `手势 ${count}`
+    if (count === 0) name = '握拳 (Fist)'
+    else if (count === 5) name = '张开 (Open Palm)'
+    else {
+      const labels = ['拇指', '食指', '中指', '无名指', '小指']
+      name = labels.filter((_, i) => fingers[i]).join(' + ') || '握拳'
+    }
+    return { fingers, name }
+  }
+
+  // ---------- 机械手指令测试（与桌面上位机行为一致） ----------
+
+  function logCommand(text) {
+    const el = document.getElementById('commandLog')
+    if (!el) return
+    const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+    const line = `[${stamp}] ${text}`
+    el.textContent = el.textContent === '暂无指令' ? line : `${el.textContent}\n${line}`
+    el.scrollTop = el.scrollHeight
+  }
+
+  function setHandStatus(text) {
+    const el = document.getElementById('handStatus')
+    if (el) el.textContent = text
+  }
+
+  function handConnected() {
+    return Boolean(state.handChar && state.handServer && state.handServer.connected)
+  }
+
+  function updateHandUi() {
+    const connected = handConnected()
+    const connectBtn = document.getElementById('connectHand')
+    const disconnectBtn = document.getElementById('disconnectHand')
+    if (connectBtn) connectBtn.disabled = connected || state.handConnecting
+    if (disconnectBtn) disconnectBtn.disabled = !connected
+    const sendBtn = document.getElementById('sendCustom')
+    if (sendBtn) sendBtn.disabled = !connected
+    for (const button of document.querySelectorAll('[data-preset]')) {
+      button.disabled = !connected
+    }
+    for (const button of document.querySelectorAll('[data-firmware-gesture]')) {
+      button.disabled = !connected
+    }
+  }
+
+  function enqueueCommand(text) {
+    const payload = document.getElementById('appendNewline').checked ? `${text}\n` : text
+    const withResponse = document.getElementById('writeWithResponse').checked
+    state.handQueue = state.handQueue.then(async () => {
+      if (!handConnected()) {
+        logCommand(`跳过（未连接）: ${text}`)
+        return
+      }
+      const bytes = new TextEncoder().encode(payload)
+      try {
+        if (withResponse && state.handChar.writeValueWithResponse) {
+          await state.handChar.writeValueWithResponse(bytes)
+        } else if (!withResponse && state.handChar.writeValueWithoutResponse) {
+          await state.handChar.writeValueWithoutResponse(bytes)
+        } else {
+          await state.handChar.writeValue(bytes)
+        }
+        logCommand(`发送: ${text}`)
+      } catch (err) {
+        logCommand(`发送失败: ${text} -> ${err.name || 'Error'}: ${err.message || err}`)
+      }
+    })
+    return state.handQueue
+  }
+
+  function sendPreset(name) {
+    const angles = PRESET_ANGLES[name]
+    if (!angles) {
+      logCommand(`未知预设手势: ${name}`)
+      return
+    }
+    if (!document.getElementById('usePresetAngles').checked) {
+      enqueueCommand(name)
+      return
+    }
+    angles.forEach((sliderValue, index) => {
+      const angle = Math.max(0, Math.min(180, Math.round(sliderValue * 1.8)))
+      state.sliderValues[index] = sliderValue
+      const slider = document.getElementById(`finger-slider-${index}`)
+      const label = document.getElementById(`finger-value-${index}`)
+      if (slider) slider.value = String(sliderValue)
+      if (label) label.textContent = String(angle)
+      enqueueCommand(`servo_${index}=${angle}`)
+    })
+    logCommand(`预设手势: ${name}`)
+  }
+
+  function onFingerSlider(index, rawValue) {
+    const sliderValue = Math.max(0, Math.min(100, Math.round(Number(rawValue) || 0)))
+    const angle = Math.max(0, Math.min(180, Math.round(sliderValue * 1.8)))
+    const label = document.getElementById(`finger-value-${index}`)
+    if (label) label.textContent = String(angle)
+    // 与桌面上位机一致：变化小于 3 时不重复发送，避免刷 BLE。
+    if (Math.abs(sliderValue - state.sliderValues[index]) < 3) return
+    state.sliderValues[index] = sliderValue
+    if (!handConnected()) return
+    enqueueCommand(`servo_${index}=${angle}`)
+  }
+
+  function onGestureFrame(gesture) {
+    if (!handConnected()) return
+    if (!document.getElementById('gestureDriveHand')) return
+    if (!document.getElementById('gestureDriveHand').checked) return
+    const key = gesture.fingers.join(',')
+    if (key === state.lastGestureKey) return
+    const now = performance.now()
+    if (now - (state.lastGestureSentAt || 0) < GESTURE_MIN_INTERVAL_MS) return
+    state.lastGestureKey = key
+    state.lastGestureSentAt = now
+    gesture.fingers.forEach((up, index) => {
+      const angle = up === 1 ? 0 : 180
+      enqueueCommand(`servo_${index}=${angle}`)
+    })
+    logCommand(`手势驱动: ${gesture.name}`)
+  }
+
+  async function connectHand() {
+    if (!('bluetooth' in navigator)) {
+      setHandStatus('当前浏览器没有 Web Bluetooth，iOS 请使用 Bluefy')
+      return
+    }
+    const name = (document.getElementById('deviceNameInput').value || '').trim()
+    state.handConnecting = true
+    updateHandUi()
+    setHandStatus('正在请求设备...')
+    try {
+      const filters = name ? [{ name }] : undefined
+      const device = await navigator.bluetooth.requestDevice(
+        filters
+          ? { filters, optionalServices: [HAND_SERVICE_UUID] }
+          : { acceptAllDevices: true, optionalServices: [HAND_SERVICE_UUID] }
+      )
+      state.handDevice = device
+      device.addEventListener('gattserverdisconnected', () => {
+        state.handServer = null
+        state.handChar = null
+        state.lastGestureKey = ''
+        setHandStatus(`已断开: ${device.name || device.id}`)
+        logCommand('机械手连接已断开')
+        updateHandUi()
+      })
+      setHandStatus(`正在连接 ${device.name || device.id} ...`)
+      const server = await device.gatt.connect()
+      state.handServer = server
+      const service = await server.getPrimaryService(HAND_SERVICE_UUID)
+      const characteristic = await service.getCharacteristic(HAND_WRITE_CHAR_UUID)
+      state.handChar = characteristic
+      state.handQueue = Promise.resolve()
+      state.lastGestureKey = ''
+      setHandStatus(`已连接 ${device.name || device.id}，写特征就绪`)
+      logCommand(`已连接 ${device.name || device.id}`)
+    } catch (err) {
+      state.handServer = null
+      state.handChar = null
+      setHandStatus(`连接失败: ${err.name || 'Error'}: ${err.message || err}`)
+      logCommand(`连接失败: ${err.message || err}`)
+    } finally {
+      state.handConnecting = false
+      updateHandUi()
+    }
+  }
+
+  async function disconnectHand() {
+    try {
+      if (state.handServer && state.handServer.connected) {
+        state.handServer.disconnect()
+      }
+    } catch (err) {
+      logCommand(`断开异常: ${err.message || err}`)
+    }
+    state.handServer = null
+    state.handChar = null
+    state.lastGestureKey = ''
+    setHandStatus('未连接')
+    updateHandUi()
+  }
+
+  function buildControlPanel() {
+    const presetWrap = document.getElementById('presetButtons')
+    if (presetWrap) {
+      presetWrap.innerHTML = ''
+      for (const name of QUICK_MESSAGES) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.dataset.preset = name
+        button.textContent = name
+        button.disabled = true
+        button.addEventListener('click', () => sendPreset(name))
+        presetWrap.appendChild(button)
+      }
+    }
+
+    const sliderWrap = document.getElementById('fingerSliders')
+    if (sliderWrap) {
+      sliderWrap.innerHTML = ''
+      FINGER_LABELS.forEach((label, index) => {
+        const row = document.createElement('div')
+        row.className = 'rh-slider-row'
+
+        const name = document.createElement('span')
+        name.textContent = label
+
+        const slider = document.createElement('input')
+        slider.type = 'range'
+        slider.min = '0'
+        slider.max = '100'
+        slider.step = '1'
+        slider.value = '0'
+        slider.id = `finger-slider-${index}`
+        slider.addEventListener('input', (event) => onFingerSlider(index, event.target.value))
+
+        const value = document.createElement('span')
+        value.id = `finger-value-${index}`
+        value.textContent = '0'
+
+        row.appendChild(name)
+        row.appendChild(slider)
+        row.appendChild(value)
+        sliderWrap.appendChild(row)
+      })
+    }
+  }
+
+  function buildReport() {
+    const info = detectPlatform()
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      page: location.href,
+      platform: info,
+      modelUrl: MODEL_PATH,
+      mediapipe: CDN_BASE,
+      hand: {
+        serviceUuid: HAND_SERVICE_UUID,
+        writeCharUuid: HAND_WRITE_CHAR_UUID,
+        connected: handConnected(),
+        deviceName: state.handDevice ? state.handDevice.name || state.handDevice.id : '',
+        writeWithResponse: Boolean(
+          document.getElementById('writeWithResponse') &&
+            document.getElementById('writeWithResponse').checked
+        ),
+        appendNewline: Boolean(
+          document.getElementById('appendNewline') &&
+            document.getElementById('appendNewline').checked
+        )
+      },
+      results: TESTS.map((t) => ({
+        id: t.id,
+        name: t.name,
+        group: t.group,
+        status: t.status || 'pending',
+        expected: t.expected,
+        actual: t.actual || '',
+        errorName: t.errorName || '',
+        errorMessage: t.errorMessage || '',
+        suggestion: t.suggestion || ''
+      }))
+    }, null, 2)
+  }
+
+  function updateSummary() {
+    const counts = {
+      pass: 0,
+      warn: 0,
+      fail: 0,
+      pending: 0,
+      running: 0
+    }
+    for (const t of TESTS) {
+      const key = t.status || 'pending'
+      if (key in counts) counts[key]++
+    }
+    const el = document.getElementById('summary')
+    if (counts.fail) {
+      el.textContent = `失败 ${counts.fail} 项，警告 ${counts.warn} 项，通过 ${counts.pass} 项，未完成 ${counts.pending + counts.running} 项`
+    } else if (counts.warn) {
+      el.textContent = `通过 ${counts.pass} 项，警告 ${counts.warn} 项，未完成 ${counts.pending + counts.running} 项`
+    } else {
+      el.textContent = `通过 ${counts.pass} 项，警告 ${counts.warn} 项，未完成 ${counts.pending + counts.running} 项`
+    }
+  }
+
+  async function copyReport() {
+    const text = buildReport()
+    try {
+      await navigator.clipboard.writeText(text)
+      document.getElementById('summary').textContent = '测试报告已复制到剪贴板'
+    } catch (err) {
+      const area = document.createElement('textarea')
+      area.value = text
+      document.body.appendChild(area)
+      area.select()
+      document.execCommand('copy')
+      area.remove()
+      document.getElementById('summary').textContent = '测试报告已复制'
+    }
+  }
+
+  function downloadReport() {
+    const blob = new Blob([buildReport()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `robothand-test-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  document.getElementById('runAuto').addEventListener('click', runAutoTests)
+  document.getElementById('copyReport').addEventListener('click', copyReport)
+  document.getElementById('downloadReport').addEventListener('click', downloadReport)
+  document.getElementById('clearModelCache').addEventListener('click', async () => {
+    const ok = await clearModelCache()
+    state.modelBuffer = null
+    document.getElementById('summary').textContent = ok
+      ? '已清除本地模型缓存，下次加载会重新下载'
+      : '清除模型缓存失败或当前浏览器不支持 indexedDB'
+  })
+  document.getElementById('stopGesture').addEventListener('click', () => stopGestureDetection())
+  document.getElementById('minimizeCamera').addEventListener('click', toggleCameraMinimized)
+  document.getElementById('closeCamera').addEventListener('click', closeCameraPanel)
+  setupCameraDrag()
+
+  document.getElementById('connectHand').addEventListener('click', connectHand)
+  document.getElementById('disconnectHand').addEventListener('click', disconnectHand)
+  document.getElementById('sendCustom').addEventListener('click', () => {
+    const input = document.getElementById('customCommand')
+    const text = (input.value || '').trim()
+    if (!text) return
+    enqueueCommand(text)
+  })
+  document.getElementById('customCommand').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      document.getElementById('sendCustom').click()
+    }
+  })
+  document.getElementById('clearLog').addEventListener('click', () => {
+    document.getElementById('commandLog').textContent = '暂无指令'
+  })
+
+  buildControlPanel()
+  updateHandUi()
+
+  window.addEventListener('resize', () => {
+    const panel = document.getElementById('camera-preview')
+    if (!panel || panel.hidden || !panel.style.left) return
+    const maxLeft = Math.max(6, window.innerWidth - panel.offsetWidth - 6)
+    const maxTop = Math.max(6, window.innerHeight - 48)
+    const left = parseFloat(panel.style.left) || 0
+    const top = parseFloat(panel.style.top) || 0
+    panel.style.left = `${Math.min(maxLeft, Math.max(6, left))}px`
+    panel.style.top = `${Math.min(maxTop, Math.max(6, top))}px`
+  })
+
+  renderTests()
+  updateSummary()
+
+  window.addEventListener('beforeunload', () => {
+    stopCamera()
+    if (state.bleServer && state.bleServer.connected) {
+      state.bleServer.disconnect().catch(() => {})
+    }
+    if (state.handServer && state.handServer.connected) {
+      try {
+        state.handServer.disconnect()
+      } catch (err) {
+        // 页面即将卸载，忽略断开异常。
+      }
+    }
+  })
+</script>
